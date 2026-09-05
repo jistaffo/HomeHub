@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%93%90%3C/text%3E%3C/svg%3E" />
+<title>room-planner demo</title>
+<style>
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: ui-sans-serif, system-ui, "Segoe UI", Roboto, sans-serif;
+    background: #F4F5F0;
+    color: #1E2B26;
+  }
+  @media (prefers-color-scheme: dark) {
+    body { background: #10140F; color: #E8EBE3; }
+  }
+  .demo-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    border-bottom: 1px solid #C9CDBF;
+    font-size: 13px;
+  }
+  @media (prefers-color-scheme: dark) {
+    .demo-bar { border-color: #333B34; }
+  }
+  .demo-bar button {
+    font: inherit;
+    font-size: 12.5px;
+    font-weight: 600;
+    padding: 6px 10px;
+    border-radius: 4px;
+    border: 1px solid #C9CDBF;
+    background: #fff;
+    cursor: pointer;
+  }
+  @media (prefers-color-scheme: dark) {
+    .demo-bar button { background: #1E2621; color: #E8EBE3; border-color: #333B34; }
+  }
+  .demo-status { color: #7C8579; font-family: ui-monospace, monospace; font-size: 11.5px; }
+  #json-output {
+    display: none;
+    margin: 0;
+    padding: 14px 16px;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 12px;
+    white-space: pre-wrap;
+    word-break: break-word;
+    border-bottom: 1px solid #C9CDBF;
+    max-height: 30vh;
+    overflow: auto;
+  }
+  room-planner { --rp-accent: #C97A1A; }
+</style>
+</head>
+<body>
+
+<div class="demo-bar">
+  <strong>room-planner demo</strong>
+  <span class="demo-status" id="status">no changes yet</span>
+  <span style="flex:1"></span>
+  <button id="export-btn" type="button">Show current state as JSON</button>
+  <button id="reload-btn" type="button">Reload saved layout from localStorage</button>
+  <button id="clear-btn" type="button">Clear saved layout</button>
+</div>
+
+<pre id="json-output"></pre>
+
+<room-planner
+  id="planner"
+  heading="Ground Floor Layout"
+  subheading="A worked example: drag pieces to move them, drag an edge to resize one side, or a corner to resize both. This demo saves every change to your browser's localStorage, standing in for 'save however DWLLNG saves things.'"
+></room-planner>
+
+<script type="module">
+  import "./room-planner.js";
+
+  const STORAGE_KEY = "room-planner-demo-state";
+  const planner = document.getElementById("planner");
+  const statusEl = document.getElementById("status");
+  const jsonOutput = document.getElementById("json-output");
+
+  // A slightly more specific example than the component's own generic
+  // fallback, plus a couple of window/door tags, to show a mixed layout.
+  const EXAMPLE_STATE = [
+    { id: "p1", type: "living",   label: "Living Room", x: 0.5, y: 0.5,  w: 16, h: 13 },
+    { id: "p2", type: "kitchen",  label: "Kitchen",      x: 17,  y: 0.5,  w: 10, h: 10 },
+    { id: "p3", type: "bedroom",  label: "Primary Bedroom", x: 0.5, y: 14, w: 12, h: 12 },
+    { id: "p4", type: "bedroom",  label: "Bedroom 2",   x: 13,  y: 14,  w: 10, h: 10 },
+    { id: "p5", type: "bathroom", label: "Bathroom",    x: 17,  y: 11,  w: 7,  h: 7 },
+    { id: "p6", type: "hallway",  label: "Hallway",     x: 13,  y: 0.5, w: 3.5, h: 13 },
+    { id: "p7", type: "door",     label: "Front Door",  x: 0.5, y: 26,  w: 1.5, h: 1.5 },
+    { id: "p8", type: "window",   label: "Bay Window",  x: 5,   y: 26,  w: 1.5, h: 1.5 }
+  ];
+
+  // Hydrate from localStorage if we have a previously-saved layout,
+  // otherwise fall back to the example above (the component's own
+  // fallback only kicks in if we never set initialState at all).
+  function loadSaved() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) {
+      console.warn("Couldn't read saved layout:", e);
+      return null;
+    }
+  }
+
+  planner.initialState = loadSaved() || EXAMPLE_STATE;
+
+  planner.referenceNotes = [
+    { value: "16'2\"", label: "Living room north wall (tape measured)" },
+    { value: "10'0\"", label: "Kitchen east wall to window center" },
+    { value: "7'6\"",  label: "Bathroom door to tub edge" }
+  ];
+
+  planner.notes =
+    "Example notes panel: jot down anything that doesn't fit on the " +
+    "canvas itself — ceiling height, load-bearing walls, utility " +
+    "shutoff locations, etc.";
+
+  planner.addEventListener("change", (e) => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(e.detail.state));
+    const now = new Date();
+    statusEl.textContent = "saved to localStorage at " + now.toLocaleTimeString();
+    if (jsonOutput.style.display !== "none") {
+      jsonOutput.textContent = JSON.stringify(e.detail.state, null, 2);
+    }
+  });
+
+  document.getElementById("export-btn").addEventListener("click", () => {
+    const state = planner.getState();
+    jsonOutput.textContent = JSON.stringify(state, null, 2);
+    jsonOutput.style.display = jsonOutput.style.display === "none" ? "block" : "none";
+  });
+
+  document.getElementById("reload-btn").addEventListener("click", () => {
+    const saved = loadSaved();
+    planner.setState(saved || EXAMPLE_STATE);
+    statusEl.textContent = saved
+      ? "reloaded saved layout from localStorage"
+      : "no saved layout found — loaded the example instead";
+  });
+
+  document.getElementById("clear-btn").addEventListener("click", () => {
+    localStorage.removeItem(STORAGE_KEY);
+    planner.setState(EXAMPLE_STATE);
+    statusEl.textContent = "cleared saved layout, reset to example";
+  });
+</script>
+
+</body>
+</html>
