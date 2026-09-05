@@ -1,0 +1,9 @@
+node_modules/
+dist/
+*.log
+*.tsbuildinfo
+
+# Local database
+server/dwllng.db
+server/dwllng.db-shm
+server/dwllng.db-wal
