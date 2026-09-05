@@ -59,7 +59,34 @@ Data model (see `client/src/types.ts`): a `House` has `Floor`s, each
 wall, holding door/window `Opening`s) and a list of `DesignVersion`s (each
 its own furniture layout + wall/floor colors).
 
-## Running it locally
+## Using it (no coding required)
+
+DWLLNG runs on your own computer — there's nothing to sign up for and no
+data leaves your machine.
+
+**First time only:**
+
+1. Install [Node.js](https://nodejs.org) (the LTS version) if you don't
+   already have it.
+2. Download this repository to your computer (on GitHub, the green
+   **Code** button → **Download ZIP**, then unzip it — or `git clone` it
+   if you're comfortable with that).
+
+**Every time you want to use DWLLNG:**
+
+- **Mac:** double-click `start.command` in the folder. The first launch
+  takes a minute to set up; after that it opens in your browser in a
+  few seconds. (If macOS warns the file is from an unidentified
+  developer, right-click it and choose **Open** once.)
+- **Windows:** double-click `start.bat`.
+- **Linux, or Mac from a terminal:** run `./start.sh`.
+
+A window will stay open while DWLLNG is running — closing it (or
+pressing Ctrl+C) stops the app. Your houses are saved in a file on your
+computer (`server/dwllng.db`), so they'll still be there next time you
+start it back up.
+
+## Running it locally (for development)
 
 Requires Node.js 18+.
 
