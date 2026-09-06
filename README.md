@@ -4,6 +4,12 @@ A web app for building an accurate virtual recreation of your house, then
 redesigning any room — furniture, wall colors, flooring — while the real
 architecture (walls, doors, windows, dimensions) stays intact underneath.
 
+**Just want a simple drag-and-resize room layout tool, nothing more?**
+Open `packages/room-planner/standalone.html` directly in your browser
+(double-click it) — no server, no setup, nothing to install. See
+[`packages/room-planner/README.md`](packages/room-planner/README.md).
+Everything else below is about the full DWLLNG app.
+
 ## What it does today
 
 - **Houses & floors.** Create a house, add one or more floors.

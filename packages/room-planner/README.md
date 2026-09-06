@@ -4,9 +4,17 @@ A dependency-free custom element for laying out rooms as draggable,
 resizable rectangles on a real-world (feet) grid. No build step, no
 framework, no external libraries — drop `room-planner.js` into any page.
 
-Open `demo.html` directly in a browser (double-click it) to try it with
-no setup at all — it saves your layout to that browser's local storage
-as a stand-in for "however your app saves things."
+**To just use it, double-click `standalone.html`.** It's the same tool
+as one self-contained file with no external files to load, so it works
+straight from disk in any browser — no server, no build step, nothing
+to install. It saves your layout automatically in that browser.
+
+(`demo.html` is the same demo but loads `room-planner.js` as a real ES
+module — the way you'd actually embed this in another app. That only
+works served over `http://`/`https://` (e.g. `python3 -m http.server`),
+because browsers block ES module loading from a page opened directly
+via `file://`. If you just want to use the tool, use `standalone.html`
+instead.)
 
 ## Why
 
