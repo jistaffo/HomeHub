@@ -389,6 +389,10 @@ class RoomPlannerElement extends HTMLElement {
   _clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
   _snap(v) { return Math.round(v / this.SNAP) * this.SNAP; }
 
+  _dimsStr(w, h) {
+    return this._ftStr(w) + " × " + this._ftStr(h) + "  ·  " + Math.round(w * h).toLocaleString() + " sf";
+  }
+
   _updateAreaTotal() {
     var sum = 0;
     var types = this._types;
@@ -439,7 +443,7 @@ class RoomPlannerElement extends HTMLElement {
     if (!meta.tag) {
       var dims = document.createElement("div");
       dims.className = "dims";
-      dims.textContent = this._ftStr(p.w) + " × " + this._ftStr(p.h);
+      dims.textContent = this._dimsStr(p.w, p.h);
       content.appendChild(dims);
     }
 
@@ -552,7 +556,7 @@ class RoomPlannerElement extends HTMLElement {
       pieceEl.style.top = (ny * self.SCALE) + "px";
       pieceEl.style.width = (nw * self.SCALE) + "px";
       pieceEl.style.height = (nh * self.SCALE) + "px";
-      if (dimsEl) dimsEl.textContent = self._ftStr(nw) + " × " + self._ftStr(nh);
+      if (dimsEl) dimsEl.textContent = self._dimsStr(nw, nh);
       self._updateAreaTotal();
     }
     function onUp() {
@@ -583,14 +587,22 @@ class RoomPlannerElement extends HTMLElement {
       '<div><label for="ed-w">Width (ft)</label><input type="number" id="ed-w" step="0.5" min="0.5"></div>' +
       '<div><label for="ed-h">Height (ft)</label><input type="number" id="ed-h" step="0.5" min="0.5"></div>' +
       "</div>" +
+      '<div class="row">' +
+      '<div><label for="ed-x">Position X (ft)</label><input type="number" id="ed-x" step="0.5" min="0"></div>' +
+      '<div><label for="ed-y">Position Y (ft)</label><input type="number" id="ed-y" step="0.5" min="0"></div>' +
+      "</div>" +
       '<button class="del" id="ed-del" type="button">Delete this piece</button>';
 
     var labelInput = editorEl.querySelector("#ed-label");
     var wInput = editorEl.querySelector("#ed-w");
     var hInput = editorEl.querySelector("#ed-h");
+    var xInput = editorEl.querySelector("#ed-x");
+    var yInput = editorEl.querySelector("#ed-y");
     labelInput.value = p.label;
     wInput.value = p.w;
     hInput.value = p.h;
+    xInput.value = p.x;
+    yInput.value = p.y;
 
     var meta = this._types[p.type] || {};
     var minSz = meta.tag ? this.MIN_TAG : this.MIN_ROOM;
@@ -607,6 +619,16 @@ class RoomPlannerElement extends HTMLElement {
     });
     hInput.addEventListener("change", function () {
       p.h = self._clamp(self._snap(parseFloat(hInput.value) || minSz), minSz, self.CANVAS_H_FT - p.y);
+      self._renderAll();
+      self._emitChange();
+    });
+    xInput.addEventListener("change", function () {
+      p.x = self._clamp(self._snap(parseFloat(xInput.value) || 0), 0, self.CANVAS_W_FT - p.w);
+      self._renderAll();
+      self._emitChange();
+    });
+    yInput.addEventListener("change", function () {
+      p.y = self._clamp(self._snap(parseFloat(yInput.value) || 0), 0, self.CANVAS_H_FT - p.h);
       self._renderAll();
       self._emitChange();
     });
