@@ -90,8 +90,15 @@
 const DEFAULT_TYPES = {
   living:   { label: "Living Room",        tag: false, w: 14,  h: 14, group: "common" },
   kitchen:  { label: "Kitchen / Dining",   tag: false, w: 12,  h: 11, group: "common" },
+  dining:   { label: "Dining Room",        tag: false, w: 12,  h: 11, group: "common" },
+  office:   { label: "Office",             tag: false, w: 10,  h: 10, group: "common" },
+  sunroom:  { label: "Sunroom",            tag: false, w: 10,  h: 10, group: "common" },
   hallway:  { label: "Hallway",            tag: false, w: 4,   h: 10, group: "circulation" },
-  utility:  { label: "Utility / Laundry",  tag: false, w: 5,   h: 6,  group: "circulation" },
+  stairs:   { label: "Stairs",             tag: false, w: 4,   h: 8,  group: "circulation" },
+  utility:  { label: "Utility",            tag: false, w: 5,   h: 6,  group: "circulation" },
+  laundry:  { label: "Laundry Room",       tag: false, w: 6,   h: 6,  group: "circulation" },
+  mudroom:  { label: "Mudroom",            tag: false, w: 6,   h: 6,  group: "circulation" },
+  garage:   { label: "Garage",             tag: false, w: 20,  h: 20, group: "circulation" },
   closet:   { label: "Closet",             tag: false, w: 3,   h: 4,  group: "circulation" },
   bedroom:  { label: "Bedroom",            tag: false, w: 11,  h: 12, group: "bed" },
   bathroom: { label: "Bathroom",           tag: false, w: 6,   h: 8,  group: "wet" },
@@ -178,8 +185,9 @@ const STYLE = `
   /* Text is clipped by this inner wrapper, not by .piece itself — .piece
      must stay overflow:visible so the resize handles and delete button,
      which are deliberately positioned outside its box, aren't cut off. */
-  .piece .content{position:absolute; inset:0; display:flex; flex-direction:column; padding:5px 7px; overflow:hidden; pointer-events:none;}
-  .piece .label{font-weight:600; font-size:12px; line-height:1.2;}
+  .piece .content{position:absolute; inset:0; display:flex; flex-direction:column; padding:5px 7px; overflow:hidden;}
+  .piece .label{font-weight:600; font-size:12px; line-height:1.2; pointer-events:auto; cursor:text;}
+  .piece .rename-input{font-family:inherit; font-weight:600; font-size:12px; width:100%; box-sizing:border-box; border:1px solid var(--rp-accent); border-radius:2px; padding:0 2px; margin:-1px -2px; background:var(--rp-paper); color:var(--rp-ink); pointer-events:auto;}
   .piece .dims{font-family:ui-monospace,monospace; font-size:9.5px; color:var(--rp-ink-soft); margin-top:auto;}
   .piece.g-common{border-color:var(--rp-common); background:var(--rp-common-bg);}
   .piece.g-bed{border-color:var(--rp-bed); background:var(--rp-bed-bg);}
@@ -266,6 +274,7 @@ class RoomPlannerElement extends HTMLElement {
     this._notes = "";
     this._connected = false;
     this._pendingInitialState = null;
+    this._lastPieceClick = null;
 
     const root = this.attachShadow({ mode: "open" });
     const style = document.createElement("style");
@@ -308,7 +317,7 @@ class RoomPlannerElement extends HTMLElement {
     this._els.heading.textContent = this.getAttribute("heading") || "Room Planner";
     this._els.subheading.textContent =
       this.getAttribute("subheading") ||
-      "Drag a piece to move it. Drag any edge to extend or widen just that side, or a corner to resize both directions. Click a piece to rename it or type exact feet. Each grid cell is 1 sq ft.";
+      "Drag a piece to move it. Drag any edge to extend or widen just that side, or a corner to resize both directions. Double-click a piece's name to rename it, or click it once to type exact width, height, and position. Each grid cell is 1 sq ft.";
 
     var attrState = this.getAttribute("initial-state");
     var starting = this._pendingInitialState;
@@ -451,6 +460,7 @@ class RoomPlannerElement extends HTMLElement {
     var label = document.createElement("div");
     label.className = "label";
     label.textContent = p.label;
+    label.title = "Double-click to rename";
     content.appendChild(label);
 
     if (!meta.tag) {
@@ -488,8 +498,21 @@ class RoomPlannerElement extends HTMLElement {
     el.addEventListener("pointerdown", function (e) { self._startDrag(e, p); });
     el.addEventListener("click", function (e) {
       e.stopPropagation();
+      // Double-click-to-rename, detected here (not via native "dblclick" on
+      // the label) because this handler's own re-render replaces the label
+      // DOM node on the first click of the pair, which breaks the browser's
+      // built-in double-click tracking in some engines. Keying off the
+      // piece's stable id rather than DOM node identity sidesteps that.
+      var now = Date.now();
+      var last = self._lastPieceClick;
+      var isDoubleClick = last && last.id === p.id && now - last.time < 400;
+      self._lastPieceClick = isDoubleClick ? null : { id: p.id, time: now };
       self._selectedId = p.id;
       self._renderAll();
+      if (isDoubleClick) {
+        var freshLabel = self._els.canvas.querySelector('.piece[data-id="' + p.id + '"] .label');
+        if (freshLabel) self._startInlineRename(p, freshLabel);
+      }
     });
 
     return el;
@@ -655,6 +678,49 @@ class RoomPlannerElement extends HTMLElement {
     if (this._selectedId === id) this._selectedId = null;
     this._renderAll();
     this._emitChange();
+  }
+
+  // Double-click-to-rename right on the canvas — the side editor panel
+  // can also rename (plus set exact width/height/position), but this is
+  // the fast path most people reach for first.
+  _startInlineRename(p, labelEl) {
+    var self = this;
+    var input = document.createElement("input");
+    input.type = "text";
+    input.className = "rename-input";
+    input.maxLength = 30;
+    input.value = p.label;
+    labelEl.replaceWith(input);
+    input.focus();
+    input.select();
+
+    var done = false;
+    function commit() {
+      if (done) return;
+      done = true;
+      var val = input.value.trim();
+      p.label = val || p.label;
+      self._renderAll();
+      self._emitChange();
+    }
+    function cancel() {
+      if (done) return;
+      done = true;
+      self._renderAll();
+    }
+    input.addEventListener("blur", commit);
+    input.addEventListener("keydown", function (e) {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        input.blur();
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        input.removeEventListener("blur", commit);
+        cancel();
+      }
+    });
+    input.addEventListener("pointerdown", function (e) { e.stopPropagation(); });
+    input.addEventListener("click", function (e) { e.stopPropagation(); });
   }
 
   _addPiece(type) {

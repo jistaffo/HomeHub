@@ -45,6 +45,9 @@ That's it — with no further setup it starts from a small generic layout
 - **Resize from any of 8 handles**: the 4 corners resize both
   dimensions (the opposite corner stays put); the 4 edge midpoints
   resize just that one side (the opposite edge stays put).
+- **Double-click a piece to rename it** right on the canvas (Enter
+  commits, Escape cancels). The side panel can also rename it, plus set
+  exact width, height, and position by typing numbers.
 - Movement and resizing **snap to a 0.5 ft (6") grid**.
 - Dimensions and square footage are shown live, updating **during**
   the drag/resize, not just after you let go.
@@ -116,7 +119,8 @@ from the module) has this shape:
 ```
 
 The built-in catalog covers common room types (living room, kitchen,
-hallway, utility, closet, bedroom, bathroom) plus point tags (door,
+dining room, office, sunroom, hallway, stairs, utility, laundry room,
+mudroom, garage, closet, bedroom, bathroom) plus point tags (door,
 window, exterior feature). Pass `.types` to add your own or override
 any of these — it's merged over the defaults, so you only need to
 specify what you're changing.
