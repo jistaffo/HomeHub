@@ -10,6 +10,9 @@ Open `packages/room-planner/standalone.html` directly in your browser
 [`packages/room-planner/README.md`](packages/room-planner/README.md).
 Everything else below is about the full DWLLNG app.
 
+**Looking for the Top 10 movie list app?** It's a separate, self-contained
+app in [`top10/`](top10/README.md).
+
 ## What it does today
 
 - **Houses & floors.** Create a house, add one or more floors.
