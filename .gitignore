@@ -10,3 +10,4 @@ server/dwllng.db-wal
 
 # Top 10 app data
 top10/data/
+top10/.env

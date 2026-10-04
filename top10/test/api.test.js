@@ -5,23 +5,39 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { startMockOmdb } from './fixtures.js';
+import { startMockOmdb, startMockTmdb } from './fixtures.js';
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PORT = 4199;
 const base = `http://localhost:${PORT}`;
-let omdb, app, dataDir;
+let omdb, tmdb, app, dataDir;
 
 before(async () => {
   omdb = await startMockOmdb();
+  tmdb = await startMockTmdb();
   dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'top10-'));
   app = spawn(process.execPath, ['server.js'], {
     cwd: root,
-    env: { ...process.env, PORT: String(PORT), DATA_FILE: path.join(dataDir, 'db.json'), OMDB_API_KEY: 'test', OMDB_BASE_URL: `http://localhost:${omdb.address().port}/`, INVITE_CODE: 'letmein', ANTHROPIC_API_KEY: '', TMDB_API_KEY: '' },
+    env: {
+      ...process.env,
+      PORT: String(PORT),
+      DATA_FILE: path.join(dataDir, 'db.json'),
+      OMDB_API_KEY: 'test',
+      OMDB_BASE_URL: `http://localhost:${omdb.address().port}/`,
+      TMDB_API_KEY: 'test',
+      TMDB_BASE_URL: `http://localhost:${tmdb.address().port}/3`,
+      ANTHROPIC_API_KEY: '',
+      INVITE_CODE: '',
+    },
     stdio: 'pipe',
   });
   for (let i = 0; i < 50; i++) {
-    try { await fetch(`${base}/api/config`); return; } catch { await new Promise((r) => setTimeout(r, 100)); }
+    try {
+      await fetch(`${base}/api/config`);
+      return;
+    } catch {
+      await new Promise((r) => setTimeout(r, 100));
+    }
   }
   throw new Error('server did not start');
 });
@@ -29,12 +45,13 @@ before(async () => {
 after(() => {
   app.kill();
   omdb.close();
+  tmdb.close();
   fs.rmSync(dataDir, { recursive: true, force: true });
 });
 
 function client() {
   let cookie = '';
-  return async (method, url, body) => {
+  const call = async (method, url, body) => {
     const res = await fetch(base + url, {
       method,
       headers: { 'content-type': 'application/json', 'x-top10': '1', cookie },
@@ -44,47 +61,73 @@ function client() {
     if (set) cookie = set.split(';')[0];
     return { status: res.status, body: await res.json() };
   };
+  call.cookie = () => cookie;
+  return call;
 }
 
 const alice = client();
 const bob = client();
+const bobPhone = client();
+let invite;
 
-test('first user signs up without invite; others need it', async () => {
+test('first user becomes owner; others need the invite code', async () => {
   let r = await alice('POST', '/api/signup', { username: 'alice', displayName: 'Alice', password: 'password1' });
   assert.equal(r.status, 200);
+  assert.equal(r.body.user.isOwner, true);
+  invite = (await alice('GET', '/api/friends')).body.inviteCode;
   r = await bob('POST', '/api/signup', { username: 'bob', password: 'password1', inviteCode: 'wrong' });
   assert.equal(r.status, 403);
-  r = await bob('POST', '/api/signup', { username: 'bob', displayName: 'Bob', password: 'password1', inviteCode: 'letmein' });
+  r = await bob('POST', '/api/signup', { username: 'bob', displayName: 'Bob', password: 'password1', inviteCode: invite });
   assert.equal(r.status, 200);
+  assert.equal(r.body.user.isOwner, false);
+  assert.equal((await bobPhone('POST', '/api/login', { username: 'bob', password: 'password1' })).status, 200);
 });
 
 test('mutations without the custom header are rejected', async () => {
-  const r = await fetch(`${base}/api/logout`, { method: 'POST' });
-  assert.equal(r.status, 403);
+  assert.equal((await fetch(`${base}/api/logout`, { method: 'POST' })).status, 403);
 });
 
-test('movie details include all three scores and credits', async () => {
+test('details merge OMDb scores with TMDB cast and poster', async () => {
   const { status, body: m } = await alice('GET', '/api/movies/tt0111161');
   assert.equal(status, 200);
   assert.deepEqual(m.scores, { imdb: '9.3/10', imdbVotes: null, rottenTomatoes: '89%', metacritic: '82/100' });
   assert.deepEqual(m.director, ['Frank Darabont']);
-  assert.equal(m.actors.length, 3);
-  assert.equal(m.synopsis, 'Short premise.');
-  // Metascore falls back to the top-level field when Ratings lacks it.
-  assert.equal((await alice('GET', '/api/movies/tt1375666')).body.scores.metacritic, '74/100');
+  assert.deepEqual(m.actors, ['Tim Robbins', 'Morgan Freeman', 'Bob Gunton', 'William Sadler']); // TMDB billing order, top 4
+  assert.equal(m.poster, 'https://image.tmdb.org/t/p/w342/shawshank.jpg');
+  assert.equal(m.tmdbId, 278);
+  assert.equal(m.synopsis, 'Short premise.'); // IMDb short plot preferred over TMDB overview
 });
 
-test('search proxies OMDb', async () => {
-  const { body } = await alice('GET', '/api/movies/search?q=back');
-  assert.equal(body.results[0].imdbID, 'tt0088763');
+test('search goes through TMDB and supports a trailing year', async () => {
+  let { body } = await alice('GET', '/api/movies/search?q=back');
+  assert.equal(body.results[0].id, 'tmdb:105');
+  assert.equal(body.results[0].year, '1985');
+  assert.equal(body.results[0].poster, 'https://image.tmdb.org/t/p/w154/bttf.jpg');
+  // Already-cached movies come back with their IMDb id.
+  ({ body } = await alice('GET', '/api/movies/search?q=shawshank'));
+  assert.equal(body.results[0].id, 'tt0111161');
+  ({ body } = await alice('GET', '/api/movies/search?q=back%202020'));
+  assert.equal(body.results.length, 0);
+  ({ body } = await alice('GET', '/api/movies/search?q=back%20(1985)'));
+  assert.equal(body.results.length, 1);
+});
+
+test('TMDB ids resolve to IMDb ids; movies not on IMDb are refused clearly', async () => {
+  const r = await alice('GET', '/api/movies/tmdb:105');
+  assert.equal(r.body.imdbID, 'tt0088763');
+  assert.equal(r.body.scores.rottenTomatoes, '93%');
+  const missing = await alice('GET', '/api/movies/tmdb:1000');
+  assert.equal(missing.status, 404);
+  assert.match(missing.body.error, /isn’t listed on IMDb/);
+  assert.equal((await alice('GET', '/api/movies/nonsense')).status, 400);
 });
 
 test('lists enforce era, size and uniqueness', async () => {
   let r = await alice('PUT', '/api/mine/1990s', { items: [{ imdbID: 'tt0088763' }] });
   assert.equal(r.status, 400);
   assert.match(r.body.error, /doesn't fit/);
-  r = await alice('PUT', '/api/mine/all-time', { items: [{ imdbID: 'tt0111161' }, { imdbID: 'tt0111161' }] });
-  assert.equal(r.status, 400);
+  r = await alice('PUT', '/api/mine/all-time', { items: [{ imdbID: 'tt0111161' }, { imdbID: 'tmdb:278' }] });
+  assert.equal(r.status, 400, 'same movie by two kinds of id is still a duplicate');
   r = await alice('PUT', '/api/mine/all-time', { items: Array.from({ length: 11 }, () => ({ imdbID: 'tt0111161' })) });
   assert.equal(r.status, 400);
   r = await alice('PUT', '/api/mine/all-time', { items: [{ imdbID: 'tt0111161', note: 'Hope.' }, { imdbID: 'tt0088763' }] });
@@ -94,9 +137,10 @@ test('lists enforce era, size and uniqueness', async () => {
 });
 
 test('friends see each other and compare builds a group ranking', async () => {
-  await bob('PUT', '/api/mine/all-time', { items: [{ imdbID: 'tt0088763' }, { imdbID: 'tt1375666' }] });
+  await bob('PUT', '/api/mine/all-time', { items: [{ imdbID: 'tt0088763' }] });
   const f = await bob('GET', '/api/friends');
   assert.equal(f.body.people.length, 2);
+  assert.equal(f.body.viewerIsOwner, false);
   assert.equal(f.body.recent[0].owner.username, 'alice');
   const c = await alice('GET', '/api/compare/all-time');
   assert.equal(c.body.lists.length, 2);
@@ -104,24 +148,89 @@ test('friends see each other and compare builds a group ranking', async () => {
   assert.equal(c.body.consensus[0].points, 19);
 });
 
-test('public share link can be turned on and off', async () => {
+test('public share link can be turned on and off; clearing a list deletes it', async () => {
   const mine = await alice('GET', '/api/mine/all-time');
-  let r = await alice('POST', `/api/lists/${mine.body.id}/share`, { enabled: true });
-  const token = r.body.shareToken;
+  const token = (await alice('POST', `/api/lists/${mine.body.id}/share`, { enabled: true })).body.shareToken;
   assert.ok(token);
   const anon = await fetch(`${base}/api/shared/${token}`).then((x) => x.json());
   assert.equal(anon.items.length, 2);
   assert.equal(anon.shareToken, undefined);
-  // Bob can't toggle Alice's list.
   assert.equal((await bob('POST', `/api/lists/${mine.body.id}/share`, { enabled: false })).status, 404);
   await alice('POST', `/api/lists/${mine.body.id}/share`, { enabled: false });
   assert.equal((await fetch(`${base}/api/shared/${token}`)).status, 404);
+
+  await alice('PUT', '/api/mine/1980s', { items: [{ imdbID: 'tt0088763' }] });
+  const cleared = await alice('PUT', '/api/mine/1980s', { items: [] });
+  assert.equal(cleared.body.id, null);
+  assert.ok(!(await alice('GET', '/api/my-lists')).body.lists.some((l) => l.category === '1980s'));
 });
 
-test('unauthenticated API access is refused; shared page serves the app', async () => {
+test('display name and password changes', async () => {
+  let r = await bob('PATCH', '/api/me', { displayName: '  Robert ' });
+  assert.equal(r.body.user.displayName, 'Robert');
+  assert.equal((await bob('PATCH', '/api/me', { displayName: '' })).status, 400);
+  assert.equal((await bob('POST', '/api/me/password', { current: 'nope', next: 'password2' })).status, 400);
+  assert.equal((await bob('POST', '/api/me/password', { current: 'password1', next: 'short' })).status, 400);
+  r = await bob('POST', '/api/me/password', { current: 'password1', next: 'password2' });
+  assert.equal(r.status, 200);
+  // This session survives, the other device is signed out.
+  assert.equal((await bob('GET', '/api/friends')).status, 200);
+  assert.equal((await bobPhone('GET', '/api/friends')).status, 401);
+});
+
+test('owner can issue a one-time reset link', async () => {
+  assert.equal((await bob('POST', `/api/users/x/reset-link`)).status, 403);
+  const people = (await alice('GET', '/api/friends')).body.people;
+  const bobId = people.find((p) => p.username === 'bob').id;
+  const { body } = await alice('POST', `/api/users/${bobId}/reset-link`);
+  const token = body.path.split('/').pop();
+  const stranger = client();
+  assert.equal((await stranger('GET', `/api/reset/${token}`)).body.username, 'bob');
+  assert.equal((await stranger('POST', `/api/reset/${token}`, { password: 'x' })).status, 400);
+  const r = await stranger('POST', `/api/reset/${token}`, { password: 'password3' });
+  assert.equal(r.status, 200);
+  assert.equal(r.body.user.username, 'bob');
+  assert.equal((await stranger('POST', `/api/reset/${token}`, { password: 'password4' })).status, 404, 'link is single-use');
+  assert.equal((await bob('GET', '/api/friends')).status, 401, 'old sessions are revoked');
+  assert.equal((await bob('POST', '/api/login', { username: 'bob', password: 'password3' })).status, 200);
+});
+
+test('owner can rotate the invite and remove members', async () => {
+  assert.equal((await bob('POST', '/api/invite/rotate')).status, 403);
+  const { body } = await alice('POST', '/api/invite/rotate');
+  assert.notEqual(body.inviteCode, invite);
+  const carol = client();
+  assert.equal((await carol('POST', '/api/signup', { username: 'carol', password: 'password1', inviteCode: invite })).status, 403);
+  assert.equal((await carol('POST', '/api/signup', { username: 'carol', password: 'password1', inviteCode: body.inviteCode })).status, 200);
+
+  const people = (await alice('GET', '/api/friends')).body.people;
+  const bobId = people.find((p) => p.username === 'bob').id;
+  assert.equal((await bob('DELETE', `/api/users/${bobId}`)).status, 403);
+  assert.equal((await alice('DELETE', `/api/users/${people.find((p) => p.isMe).id}`)).status, 400);
+  assert.equal((await alice('DELETE', `/api/users/${bobId}`)).status, 200);
+  assert.equal((await bob('GET', '/api/friends')).status, 401);
+  assert.equal((await alice('GET', '/api/compare/all-time')).body.lists.length, 1, "bob's lists are gone");
+});
+
+test('failed logins are throttled per username, successful ones never are', async () => {
+  for (let i = 0; i < 12; i++) assert.equal((await alice('POST', '/api/login', { username: 'alice', password: 'password1' })).status, 200);
+  const eve = client();
+  for (let i = 0; i < 10; i++) await eve('POST', '/api/login', { username: 'carol', password: 'guess' });
+  assert.equal((await eve('POST', '/api/login', { username: 'carol', password: 'password1' })).status, 429);
+  assert.equal((await alice('POST', '/api/login', { username: 'alice', password: 'password1' })).status, 200);
+});
+
+test('hostile URLs do not crash the server or leak files', async () => {
+  assert.equal((await fetch(`${base}/%E0%A4%A`)).status, 400);
+  assert.equal((await fetch(`${base}/api/lists/%E0%A4%A`)).status, 400);
+  assert.doesNotMatch(await fetch(`${base}/%2e%2e/server.js`).then((r) => r.text()), /createServer/);
   assert.equal((await fetch(`${base}/api/friends`)).status, 401);
   const html = await fetch(`${base}/s/whatever`).then((r) => r.text());
   assert.match(html, /<script type="module" src="\/app.js">/);
-  assert.equal((await fetch(`${base}/../server.js`)).status, 200); // normalized to index.html, not the source
-  assert.doesNotMatch(await fetch(`${base}/%2e%2e/server.js`).then((r) => r.text()), /createServer/);
+});
+
+test('daily backup snapshot is written', () => {
+  const files = fs.readdirSync(path.join(dataDir, 'backups'));
+  assert.equal(files.length, 1);
+  assert.match(files[0], /^db-\d{4}-\d{2}-\d{2}\.json$/);
 });

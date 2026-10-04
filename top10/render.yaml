@@ -1,0 +1,24 @@
+# One-click deploy on Render: New → Blueprint → pick this repo.
+# The persistent disk keeps everyone's lists across deploys.
+services:
+  - type: web
+    name: top10
+    runtime: node
+    plan: starter
+    rootDir: top10
+    buildCommand: npm ci --omit=dev
+    startCommand: node server.js
+    healthCheckPath: /api/config
+    envVars:
+      - key: DATA_FILE
+        value: /var/data/top10.json
+      - key: TMDB_API_KEY
+        sync: false
+      - key: OMDB_API_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+    disk:
+      name: top10-data
+      mountPath: /var/data
+      sizeGB: 1

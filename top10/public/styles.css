@@ -254,10 +254,17 @@ img { display: block; }
 .switch-auth { text-align: center; margin-top: 16px; font-size: 14px; color: var(--muted); }
 .switch-auth button { background: none; border: 0; color: var(--text); font-weight: 700; cursor: pointer; text-decoration: underline; }
 
+/* ---------- account + owner tools ---------- */
+
+.badge { display: inline-block; vertical-align: middle; margin-left: 4px; padding: 1px 7px; border-radius: 999px; background: var(--surface-2); color: var(--muted); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+.sheet-section { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line); }
+.list-foot { display: flex; justify-content: center; margin-top: 18px; }
+.site-foot { max-width: 880px; margin: 0 auto; padding: 0 16px 40px; text-align: center; font-size: 12px; line-height: 1.6; color: var(--muted); }
+
 /* ---------- sheet + toast ---------- */
 
 .sheet {
-  border: 0; border-radius: 20px; padding: 0; width: min(460px, calc(100vw - 32px));
+  border: 0; border-radius: 20px; padding: 0; width: min(460px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow: auto;
   background: var(--surface); color: var(--text); box-shadow: 0 20px 60px rgb(0 0 0 / 0.35);
 }
 .sheet::backdrop { background: rgb(0 0 0 / 0.45); }

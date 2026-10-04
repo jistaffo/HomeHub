@@ -1,10 +1,23 @@
-// Movie data: OMDb for details + IMDb / Rotten Tomatoes / Metacritic scores,
-// optional TMDB for full billing order (OMDb usually lists only 3 actors),
-// optional Claude for rewriting IMDb's plot into a spoiler-free description.
+// Movie data comes from two free APIs, each doing what it's best at:
+//
+//   TMDB  search (popularity-ranked), posters, top-billed cast, director and
+//         writer credits, genres, runtime, overview.
+//   OMDb  IMDb rating, Rotten Tomatoes, Metacritic, MPAA rating, and IMDb's
+//         plot summaries.
+//
+// Either key alone is enough to run; with both, TMDB handles search (which
+// also keeps you well inside OMDb's 1,000 requests/day free tier) and the two
+// are merged per movie. Movies are keyed by IMDb id everywhere.
+//
+// Optionally, Claude rewrites the full plot into a spoiler-free description.
 
 const OMDB_BASE = process.env.OMDB_BASE_URL || 'https://www.omdbapi.com/';
 const TMDB_BASE = process.env.TMDB_BASE_URL || 'https://api.themoviedb.org/3';
+const TMDB_IMG = 'https://image.tmdb.org/t/p';
 const REFRESH_MS = 7 * 24 * 60 * 60 * 1000; // re-pull scores weekly
+
+const IMDB_ID = /^tt\d{5,10}$/;
+const TMDB_ID = /^tmdb:(\d{1,10})$/;
 
 export class MovieService {
   constructor(store, { omdbKey, tmdbKey, anthropicKey } = {}) {
@@ -17,35 +30,88 @@ export class MovieService {
   }
 
   get configured() {
-    return Boolean(this.omdbKey);
+    return Boolean(this.omdbKey || this.tmdbKey);
   }
 
+  get sources() {
+    return { omdb: Boolean(this.omdbKey), tmdb: Boolean(this.tmdbKey), claude: Boolean(this.anthropicKey) };
+  }
+
+  // ---------- upstream clients ----------
+
   async omdb(params) {
-    if (!this.omdbKey) throw httpError(503, 'Movie lookups are not configured. Set OMDB_API_KEY on the server.');
     const url = new URL(OMDB_BASE);
     url.search = new URLSearchParams({ apikey: this.omdbKey, ...params }).toString();
     const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
+    if (res.status === 401) throw httpError(502, 'OMDb rejected the API key (check OMDB_API_KEY, and that it was activated from the email).');
     if (!res.ok) throw httpError(502, `OMDb returned ${res.status}`);
     return res.json();
   }
 
+  // Accepts either a v3 API key or a v4 "API Read Access Token".
+  async tmdb(pathname, params = {}) {
+    const url = new URL(TMDB_BASE + pathname);
+    const bearer = this.tmdbKey.length > 40;
+    url.search = new URLSearchParams({ ...params, ...(bearer ? {} : { api_key: this.tmdbKey }) }).toString();
+    const res = await fetch(url, {
+      headers: { accept: 'application/json', ...(bearer ? { Authorization: `Bearer ${this.tmdbKey}` } : {}) },
+      signal: AbortSignal.timeout(10000),
+    });
+    if (res.status === 401) throw httpError(502, 'TMDB rejected the API key (check TMDB_API_KEY).');
+    if (res.status === 404) return null;
+    if (!res.ok) throw httpError(502, `TMDB returned ${res.status}`);
+    return res.json();
+  }
+
+  // ---------- search ----------
+
+  // A trailing year narrows results: "heat 1995", "dune (2021)".
   async search(query) {
-    const q = String(query || '').trim();
+    let q = String(query || '').trim();
     if (q.length < 2) return [];
-    const data = await this.omdb({ s: q, type: 'movie' });
+    if (!this.configured) throw httpError(503, 'Movie lookups are not configured. Set TMDB_API_KEY and/or OMDB_API_KEY on the server.');
+    const m = q.match(/^(.+?)\s*\(?((?:19|20)\d{2})\)?$/);
+    const year = m ? m[2] : null;
+    if (m) q = m[1];
+
+    if (this.tmdbKey) {
+      const data = await this.tmdb('/search/movie', { query: q, include_adult: 'false', ...(year ? { primary_release_year: year } : {}) });
+      const known = this.tmdbIndex();
+      return (data?.results || []).slice(0, 10).map((r) => ({
+        id: known.get(r.id) || `tmdb:${r.id}`,
+        imdbID: known.get(r.id) || null,
+        tmdbId: r.id,
+        title: r.title,
+        year: (r.release_date || '').slice(0, 4),
+        poster: r.poster_path ? `${TMDB_IMG}/w154${r.poster_path}` : null,
+      }));
+    }
+
+    const data = await this.omdb({ s: q, type: 'movie', ...(year ? { y: year } : {}) });
     if (data.Response === 'False') return [];
-    return (data.Search || []).slice(0, 10).map((m) => ({
-      imdbID: m.imdbID,
-      title: m.Title,
-      year: m.Year,
-      poster: m.Poster && m.Poster !== 'N/A' ? m.Poster : null,
+    return (data.Search || []).slice(0, 10).map((r) => ({
+      id: r.imdbID,
+      imdbID: r.imdbID,
+      tmdbId: null,
+      title: r.Title,
+      year: r.Year,
+      poster: clean(r.Poster),
     }));
   }
 
-  // Cached details. Stale entries are refreshed; if the refresh fails we keep
+  tmdbIndex() {
+    const map = new Map();
+    for (const m of Object.values(this.store.data.movies)) if (m.tmdbId) map.set(m.tmdbId, m.imdbID);
+    return map;
+  }
+
+  // ---------- details ----------
+
+  // `id` is an IMDb id ("tt0111161") or a TMDB search result id ("tmdb:278").
+  // Cached; stale entries are refreshed, and if the refresh fails we keep
   // serving the stale copy so a flaky upstream never breaks a list.
-  async get(imdbID) {
-    if (!/^tt\d{5,10}$/.test(imdbID)) throw httpError(400, 'Invalid IMDb id');
+  async get(id) {
+    const imdbID = await this.resolve(id);
     const cached = this.store.data.movies[imdbID];
     if (cached && Date.now() - cached.fetchedAt < REFRESH_MS) return cached;
     if (this.inflight.has(imdbID)) return this.inflight.get(imdbID);
@@ -59,6 +125,21 @@ export class MovieService {
     return p;
   }
 
+  async resolve(id) {
+    id = String(id || '');
+    if (IMDB_ID.test(id)) return id;
+    const m = id.match(TMDB_ID);
+    if (!m) throw httpError(400, 'Invalid movie id');
+    const tmdbId = Number(m[1]);
+    const known = this.tmdbIndex().get(tmdbId);
+    if (known) return known;
+    if (!this.tmdbKey) throw httpError(400, 'Invalid movie id');
+    const ids = await this.tmdb(`/movie/${tmdbId}/external_ids`);
+    if (!ids) throw httpError(404, 'Movie not found');
+    if (!ids.imdb_id) throw httpError(404, 'That movie isn’t listed on IMDb yet, so it can’t be added.');
+    return ids.imdb_id;
+  }
+
   // Cache-only read, used when rendering lists so a page load never fans out
   // into dozens of upstream calls.
   peek(imdbID) {
@@ -66,32 +147,43 @@ export class MovieService {
   }
 
   async fetchMovie(imdbID, previous) {
+    if (!this.configured) throw httpError(503, 'Movie lookups are not configured.');
+    const keepSynopsis = previous?.synopsisSource === 'claude' && previous.synopsis;
     // The full plot is only needed as input for the spoiler-free rewrite.
-    const needFull = this.anthropicKey && previous?.synopsisSource !== 'claude';
-    const [short, full] = await Promise.all([
-      this.omdb({ i: imdbID, plot: 'short' }),
-      needFull ? this.omdb({ i: imdbID, plot: 'full' }) : null,
-    ]);
-    if (short.Response === 'False') throw httpError(404, short.Error || 'Movie not found');
+    const needFull = this.omdbKey && this.anthropicKey && !keepSynopsis;
 
-    const movie = normalizeOmdb(short);
+    const settle = (p) => p.catch((err) => (console.warn(`[movies] ${imdbID}: ${err.message}`), { error: err }));
+    const [short, full, tmdb] = await Promise.all([
+      this.omdbKey ? settle(this.omdb({ i: imdbID, plot: 'short' })) : null,
+      needFull ? settle(this.omdb({ i: imdbID, plot: 'full' })) : null,
+      this.tmdbKey ? settle(this.tmdbDetails(imdbID, previous?.tmdbId)) : null,
+    ]);
+
+    const omdbOk = short && !short.error && short.Response !== 'False';
+    const tmdbOk = tmdb && !tmdb.error;
+    if (!omdbOk && !tmdbOk) {
+      const upstream = short?.error || tmdb?.error;
+      if (upstream) throw upstream;
+      throw httpError(404, short?.Error || 'Movie not found');
+    }
+
+    const movie = mergeMovie(omdbOk ? normalizeOmdb(short) : null, tmdbOk ? tmdb : null, imdbID);
     movie.fetchedAt = Date.now();
 
-    const cast = await this.tmdbCast(imdbID).catch(() => null);
-    if (cast && cast.length) movie.actors = cast.slice(0, 4);
-
-    // Keep a previously generated description; plots don't change, scores do.
-    if (previous?.synopsisSource === 'claude' && previous.synopsis) {
+    if (keepSynopsis) {
       movie.synopsis = previous.synopsis;
       movie.synopsisSource = 'claude';
     } else {
-      const fullPlot = clean(full?.Plot);
-      const rewritten = await this.spoilerFree(movie, fullPlot).catch((err) => {
+      const source = clean(full?.Plot) || (tmdbOk ? tmdb.overview : null);
+      const rewritten = await this.spoilerFree(movie, source).catch((err) => {
         console.warn(`[movies] spoiler-free rewrite failed for ${imdbID}: ${err.message}`);
         return null;
       });
-      movie.synopsis = rewritten || clean(short.Plot) || '';
-      movie.synopsisSource = rewritten ? 'claude' : 'imdb-short';
+      const shortPlot = omdbOk ? clean(short.Plot) : null;
+      if (rewritten) [movie.synopsis, movie.synopsisSource] = [rewritten, 'claude'];
+      else if (shortPlot) [movie.synopsis, movie.synopsisSource] = [shortPlot, 'imdb-short'];
+      else if (tmdbOk && tmdb.overview) [movie.synopsis, movie.synopsisSource] = [tmdb.overview, 'tmdb'];
+      else [movie.synopsis, movie.synopsisSource] = ['', null];
     }
 
     this.store.data.movies[imdbID] = movie;
@@ -99,27 +191,22 @@ export class MovieService {
     return movie;
   }
 
-  async tmdbCast(imdbID) {
-    if (!this.tmdbKey) return null;
-    const headers = { accept: 'application/json' };
-    const auth = this.tmdbKey.length > 40 ? { Authorization: `Bearer ${this.tmdbKey}` } : null;
-    const withKey = (u) => (auth ? u : `${u}${u.includes('?') ? '&' : '?'}api_key=${this.tmdbKey}`);
-    const opts = { headers: { ...headers, ...auth }, signal: AbortSignal.timeout(8000) };
-
-    const found = await fetch(withKey(`${TMDB_BASE}/find/${imdbID}?external_source=imdb_id`), opts).then((r) => r.json());
-    const tmdbId = found?.movie_results?.[0]?.id;
-    if (!tmdbId) return null;
-    const credits = await fetch(withKey(`${TMDB_BASE}/movie/${tmdbId}/credits`), opts).then((r) => r.json());
-    return (credits.cast || [])
-      .sort((a, b) => a.order - b.order)
-      .map((c) => c.name)
-      .filter(Boolean);
+  async tmdbDetails(imdbID, knownTmdbId) {
+    let tmdbId = knownTmdbId;
+    if (!tmdbId) {
+      const found = await this.tmdb(`/find/${imdbID}`, { external_source: 'imdb_id' });
+      tmdbId = found?.movie_results?.[0]?.id;
+      if (!tmdbId) throw httpError(404, 'Not on TMDB');
+    }
+    const d = await this.tmdb(`/movie/${tmdbId}`, { append_to_response: 'credits' });
+    if (!d) throw httpError(404, 'Not on TMDB');
+    return normalizeTmdb(d);
   }
 
   // IMDb's full plot summaries frequently give away the ending. When an
   // Anthropic key is configured, rewrite it into a premise-only teaser.
-  async spoilerFree(movie, fullPlot) {
-    if (!this.anthropicKey || !fullPlot) return null;
+  async spoilerFree(movie, plot) {
+    if (!this.anthropicKey || !plot) return null;
     if (!this.claude) {
       const { default: Anthropic } = await import('@anthropic-ai/sdk');
       this.claude = new Anthropic({ apiKey: this.anthropicKey });
@@ -138,7 +225,7 @@ export class MovieService {
       messages: [
         {
           role: 'user',
-          content: `Movie: ${movie.title} (${movie.year})\nIMDb plot summary (may contain spoilers):\n${fullPlot}`,
+          content: `Movie: ${movie.title} (${movie.year})\nPlot summary (may contain spoilers):\n${plot}`,
         },
       ],
     });
@@ -151,6 +238,8 @@ export class MovieService {
     return text || null;
   }
 }
+
+// ---------- normalizers ----------
 
 function clean(v) {
   return v && v !== 'N/A' ? String(v).trim() : null;
@@ -183,6 +272,53 @@ export function normalizeOmdb(o) {
       rottenTomatoes: rating('Rotten Tomatoes'),
       metacritic,
     },
+  };
+}
+
+const PLAIN_WRITING_JOBS = new Set(['Screenplay', 'Writer', 'Screenplay By']);
+
+export function normalizeTmdb(d) {
+  const crew = d.credits?.crew || [];
+  const uniq = (arr) => [...new Set(arr)];
+  const writers = [];
+  const seen = new Set();
+  for (const c of crew.filter((c) => c.department === 'Writing')) {
+    if (seen.has(c.name)) continue;
+    seen.add(c.name);
+    writers.push(PLAIN_WRITING_JOBS.has(c.job) ? c.name : `${c.name} (${c.job.toLowerCase()})`);
+  }
+  return {
+    tmdbId: d.id,
+    title: d.title,
+    year: (d.release_date || '').slice(0, 4) || null,
+    runtime: d.runtime ? `${d.runtime} min` : null,
+    genre: (d.genres || []).map((g) => g.name),
+    director: uniq(crew.filter((c) => c.job === 'Director').map((c) => c.name)),
+    writer: writers.slice(0, 4),
+    actors: [...(d.credits?.cast || [])].sort((a, b) => a.order - b.order).slice(0, 4).map((c) => c.name),
+    poster: d.poster_path ? `${TMDB_IMG}/w342${d.poster_path}` : null,
+    overview: clean(d.overview),
+  };
+}
+
+// OMDb wins for anything IMDb-sourced (title, year, credits as IMDb lists
+// them, scores, MPAA rating). TMDB wins for posters and billing order of the
+// cast, and fills any gaps.
+export function mergeMovie(o, t, imdbID) {
+  const pick = (a, b) => (Array.isArray(a) ? (a.length ? a : b || []) : a || b || null);
+  return {
+    imdbID,
+    tmdbId: t?.tmdbId || null,
+    title: pick(o?.title, t?.title),
+    year: pick(o?.year, t?.year),
+    rated: o?.rated || null,
+    runtime: pick(o?.runtime, t?.runtime),
+    genre: pick(o?.genre, t?.genre),
+    director: pick(o?.director, t?.director),
+    writer: pick(o?.writer, t?.writer),
+    actors: t?.actors?.length >= (o?.actors?.length || 0) ? t.actors : o?.actors || [],
+    poster: pick(t?.poster, o?.poster),
+    scores: o?.scores || {},
   };
 }
 

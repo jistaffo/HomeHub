@@ -115,11 +115,7 @@ function tileHTML(item, i, { editable = false, total = 0 } = {}) {
   const m = item.movie || {};
   const people = (arr) => (arr && arr.length ? esc(arr.join(', ')) : '<span class="muted">—</span>');
   const synopsisNote =
-    m.synopsisSource === 'claude'
-      ? 'Spoiler-free summary written from the IMDb synopsis.'
-      : m.synopsisSource
-        ? 'IMDb plot summary.'
-        : '';
+    { claude: 'Spoiler-free summary written from the plot synopsis.', 'imdb-short': 'IMDb plot summary.', tmdb: 'TMDB overview.' }[m.synopsisSource] || '';
 
   return `<li class="tile" data-i="${i}" data-id="${esc(m.imdbID)}">
     <div class="tile-main" role="button" tabindex="0" aria-expanded="false">
@@ -275,7 +271,13 @@ async function renderHome() {
                ${inviteRow(friends.inviteCode)}
              </div>`
     }
-    ${state.config.moviesConfigured ? '' : '<p class="notice">Movie search is turned off because the server has no OMDb API key. See the README to enable it.</p>'}
+    ${
+      !state.config.moviesConfigured
+        ? '<p class="notice">Movie search is turned off because the server has no TMDB or OMDb API key. See the README to enable it.</p>'
+        : !state.config.sources.omdb
+          ? '<p class="notice">Scores are unavailable because the server has no OMDb API key. See the README to enable them.</p>'
+          : ''
+    }
     <div class="cat-grid">
       ${state.config.categories
         .map((c) => {
@@ -339,9 +341,17 @@ async function renderMyList(categoryId) {
       </div>
     </div>
     <div id="adderWrap"></div>
-    <ol class="tiles" id="tiles"></ol>`;
+    <ol class="tiles" id="tiles"></ol>
+    <div class="list-foot"><button class="btn ghost danger" id="clearBtn">Clear this list</button></div>`;
 
   const $tiles = document.getElementById('tiles');
+  document.getElementById('clearBtn').addEventListener('click', async () => {
+    if (!confirm(`Remove all ${items.length} movies from your ${cat.name} list? This also turns off its public link.`)) return;
+    items = [];
+    draw();
+    await save();
+    toast('List cleared');
+  });
 
   function draw() {
     $tiles.querySelectorAll('.tile.open').forEach((t) => openSet.add(t.dataset.id));
@@ -359,6 +369,7 @@ async function renderMyList(categoryId) {
     bindTileToggles($tiles);
     bindEditing();
     drawAdder();
+    document.getElementById('clearBtn').hidden = !items.length;
   }
 
   let saving = Promise.resolve();
@@ -439,7 +450,7 @@ async function renderMyList(categoryId) {
     if (wrap.querySelector('.adder')) return; // keep focus + query while editing
     wrap.innerHTML = `<div class="adder">
       <span class="glass">🔍</span>
-      <input class="search-input" id="search" type="search" placeholder="Add a movie — search by title" autocomplete="off" ${state.config.moviesConfigured ? '' : 'disabled'}>
+      <input class="search-input" id="search" type="search" placeholder="Add a movie — search by title (add a year to narrow it)" autocomplete="off" ${state.config.moviesConfigured ? '' : 'disabled'}>
       <ul class="results" id="results" hidden></ul>
     </div>`;
     bindSearch(wrap.querySelector('#search'), wrap.querySelector('#results'));
@@ -463,7 +474,7 @@ async function renderMyList(categoryId) {
       }
       $results.innerHTML = results
         .map((r, i) => {
-          const already = items.some((it) => it.imdbID === r.imdbID);
+          const already = onList(r);
           const ok = fits(cat, r.year);
           const reason = already ? 'Already on your list' : ok ? '' : `Outside ${cat.name}`;
           return `<li class="result ${reason ? 'disabled' : ''} ${i === active ? 'active' : ''}" data-i="${i}">
@@ -476,8 +487,10 @@ async function renderMyList(categoryId) {
     };
     const selectable = (i) => {
       const r = results[i];
-      return r && fits(cat, r.year) && !items.some((it) => it.imdbID === r.imdbID);
+      return r && fits(cat, r.year) && !onList(r);
     };
+
+    const onList = (r) => items.some((it) => it.imdbID === r.imdbID || (r.tmdbId && it.movie?.tmdbId === r.tmdbId));
 
     async function pick(i) {
       if (!selectable(i)) return;
@@ -487,8 +500,10 @@ async function renderMyList(categoryId) {
       $input.disabled = true;
       $input.placeholder = `Adding ${r.title}…`;
       try {
-        const movie = await api('GET', `/api/movies/${r.imdbID}`);
-        items.push({ imdbID: r.imdbID, note: '', movie });
+        const movie = await api('GET', `/api/movies/${encodeURIComponent(r.id)}`);
+        if (items.some((it) => it.imdbID === movie.imdbID)) throw new Error(`${movie.title} is already on your list`);
+        if (!fits(cat, movie.year)) throw new Error(`${movie.title} (${movie.year}) is outside ${cat.name}`);
+        items.push({ imdbID: movie.imdbID, note: '', movie });
         draw();
         await save();
         toast(`Added ${movie.title} at #${items.length}`);
@@ -498,7 +513,7 @@ async function renderMyList(categoryId) {
         const fresh = document.getElementById('search');
         if (fresh) {
           fresh.disabled = false;
-          fresh.placeholder = 'Add a movie — search by title';
+          fresh.placeholder = 'Add a movie — search by title (add a year to narrow it)';
           fresh.focus();
         }
       }
@@ -682,6 +697,8 @@ async function renderFriends() {
   loading();
   const data = await api('GET', '/api/friends');
   const others = data.people.filter((p) => !p.isMe);
+  const owner = data.viewerIsOwner;
+  const catOrder = (id) => state.config.categories.findIndex((c) => c.id === id);
 
   $app.innerHTML = `
     <div class="page-head">
@@ -691,6 +708,7 @@ async function renderFriends() {
       <strong>Invite a friend</strong>
       <p class="muted" style="margin:4px 0 0;font-size:14px">Send this link. It takes them straight to sign-up with the invite code filled in.</p>
       ${inviteRow(data.inviteCode)}
+      ${owner ? '<button class="btn ghost" id="rotateInvite" style="padding-left:0">Make a new invite link (the old one stops working)</button>' : ''}
     </div>
 
     <h2 class="section-title" style="margin-top:0">Compare by list</h2>
@@ -701,12 +719,14 @@ async function renderFriends() {
     ${data.people
       .map(
         (p) => `<div class="person">
-          <div class="person-head">${avatar(p, 'lg')}<div><h3>${esc(p.displayName)}${p.isMe ? ' <span class="muted">(you)</span>' : ''}</h3>
-            <span class="muted" style="font-size:13px">@${esc(p.username)}${p.lastActive ? ` · active ${timeAgo(p.lastActive)}` : ''}</span></div></div>
+          <div class="person-head">${avatar(p, 'lg')}<div style="flex:1;min-width:0"><h3>${esc(p.displayName)}${p.isMe ? ' <span class="muted">(you)</span>' : ''}${p.isOwner ? ' <span class="badge">owner</span>' : ''}</h3>
+            <span class="muted" style="font-size:13px">@${esc(p.username)}${p.lastActive ? ` · active ${timeAgo(p.lastActive)}` : ''}</span></div>
+            ${owner && !p.isMe ? `<button class="icon-btn" data-manage="${esc(p.id)}" aria-label="Manage ${esc(p.displayName)}" title="Manage">⋯</button>` : ''}
+          </div>
           <div class="chips">${
             p.lists.length
               ? p.lists
-                  .sort((a, b) => state.config.categories.findIndex((c) => c.id === a.category) - state.config.categories.findIndex((c) => c.id === b.category))
+                  .sort((a, b) => catOrder(a.category) - catOrder(b.category))
                   .map((l) => `<a class="chip" href="${p.isMe ? `#/list/${l.category}` : `#/view/${l.id}`}">${esc(state.cats[l.category]?.name)} <small>${l.count}/10</small></a>`)
                   .join('')
               : '<span class="muted" style="font-size:14px">No lists yet</span>'
@@ -715,6 +735,102 @@ async function renderFriends() {
       )
       .join('')}`;
   bindInviteRow();
+
+  document.getElementById('rotateInvite')?.addEventListener('click', async () => {
+    if (!confirm('Make a new invite link? Anyone holding the old link won’t be able to join with it.')) return;
+    try {
+      await api('POST', '/api/invite/rotate');
+      toast('New invite link ready');
+      renderFriends();
+    } catch (err) {
+      toast(err.message, { error: true });
+    }
+  });
+
+  $app.querySelectorAll('[data-manage]').forEach((b) =>
+    b.addEventListener('click', () => openMemberSheet(data.people.find((p) => p.id === b.dataset.manage))),
+  );
+}
+
+// Owner-only: reset a member's password, or remove them from the group.
+function openMemberSheet(person) {
+  $sheet.innerHTML = `<div class="sheet-body">
+    <div class="row" style="gap:12px">${avatar(person, 'lg')}<div><h2 style="margin:0">${esc(person.displayName)}</h2><span class="muted">@${esc(person.username)}</span></div></div>
+    <div class="sheet-section">
+      <strong>Forgot their password?</strong>
+      <p class="muted" style="margin:4px 0 0;font-size:14px">Make a one-time link that lets them choose a new password. It works for 24 hours.</p>
+      <div id="resetOut"><button class="btn" id="makeReset" style="margin-top:10px">Create reset link</button></div>
+    </div>
+    <div class="sheet-section">
+      <strong>Remove from group</strong>
+      <p class="muted" style="margin:4px 0 0;font-size:14px">Deletes their account and all their lists. This can’t be undone.</p>
+      <button class="btn danger" id="removeMember" style="margin-top:10px">Remove ${esc(person.displayName)}</button>
+    </div>
+    <div class="row" style="justify-content:flex-end;margin-top:16px"><button class="btn" id="closeSheet">Done</button></div>
+  </div>`;
+  $sheet.querySelector('#closeSheet').onclick = () => $sheet.close();
+  $sheet.querySelector('#makeReset').onclick = async () => {
+    try {
+      const { path } = await api('POST', `/api/users/${person.id}/reset-link`);
+      const url = location.origin + path;
+      $sheet.querySelector('#resetOut').innerHTML = `<div class="copy-row"><input readonly value="${esc(url)}" aria-label="Reset link"><button class="btn primary" id="sendReset">Share</button></div>`;
+      $sheet.querySelector('#sendReset').onclick = () => shareOrCopy(`Reset your Top 10 password`, url);
+    } catch (err) {
+      toast(err.message, { error: true });
+    }
+  };
+  $sheet.querySelector('#removeMember').onclick = async () => {
+    if (!confirm(`Remove ${person.displayName} and delete all of their lists?`)) return;
+    try {
+      await api('DELETE', `/api/users/${person.id}`);
+      $sheet.close();
+      toast(`${person.displayName} was removed`);
+      renderFriends();
+    } catch (err) {
+      toast(err.message, { error: true });
+    }
+  };
+  $sheet.showModal();
+}
+
+// Reached from a reset link; works whether or not someone is signed in.
+async function renderReset(token) {
+  $topbar.hidden = true;
+  loading();
+  let who;
+  try {
+    who = await api('GET', `/api/reset/${encodeURIComponent(token)}`);
+  } catch (err) {
+    $app.innerHTML = `<div class="auth"><div class="brand-mark">10</div><h1>Link expired</h1><p class="muted">${esc(err.message)}</p><a class="btn" href="#/">Go to sign in</a></div>`;
+    return;
+  }
+  $app.innerHTML = `
+    <div class="auth">
+      <div class="brand-mark">10</div>
+      <h1>New password</h1>
+      <p class="muted">Hi ${esc(who.displayName)}, choose a new password for <strong>@${esc(who.username)}</strong>.</p>
+      <form class="card" id="resetForm" novalidate>
+        <div class="field"><label for="password">New password</label><input id="password" name="password" type="password" autocomplete="new-password" minlength="8" required></div>
+        <p class="form-error" id="resetError"></p>
+        <button class="btn primary" style="width:100%" type="submit">Save and sign in</button>
+      </form>
+    </div>`;
+  $app.querySelector('#password').focus();
+  $app.querySelector('#resetForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = e.target.querySelector('button');
+    btn.disabled = true;
+    try {
+      const { user } = await api('POST', `/api/reset/${encodeURIComponent(token)}`, { password: e.target.password.value });
+      state.me = user;
+      toast('Password updated');
+      location.replace('#/');
+      route();
+    } catch (err) {
+      $app.querySelector('#resetError').textContent = err.message;
+      btn.disabled = false;
+    }
+  });
 }
 
 function renderNotFound() {
@@ -725,10 +841,26 @@ function renderNotFound() {
 
 document.getElementById('userMenuBtn').addEventListener('click', () => {
   $sheet.innerHTML = `<div class="sheet-body">
-    <div class="row" style="gap:12px">${avatar(state.me, 'lg')}<div><h2 style="margin:0">${esc(state.me.displayName)}</h2><span class="muted">@${esc(state.me.username)}</span></div></div>
-    <div class="menu-list">
-      <button class="btn" id="logoutBtn">Sign out</button>
-      <button class="btn ghost" id="closeSheet">Close</button>
+    <div class="row" style="gap:12px">${avatar(state.me, 'lg')}<div><h2 style="margin:0" id="meName">${esc(state.me.displayName)}</h2><span class="muted">@${esc(state.me.username)}${state.me.isOwner ? ' · group owner' : ''}</span></div></div>
+
+    <form class="sheet-section" id="nameForm">
+      <div class="field"><label for="displayName">Display name</label>
+        <div class="copy-row" style="margin:0"><input id="displayName" name="displayName" value="${esc(state.me.displayName)}" maxlength="40" autocomplete="name"><button class="btn" type="submit">Save</button></div>
+      </div>
+    </form>
+
+    <form class="sheet-section" id="pwForm">
+      <strong>Change password</strong>
+      <div class="field" style="margin-top:10px"><label for="pwCurrent">Current password</label><input id="pwCurrent" name="current" type="password" autocomplete="current-password" required></div>
+      <div class="field"><label for="pwNext">New password</label><input id="pwNext" name="next" type="password" autocomplete="new-password" minlength="8" required></div>
+      <p class="form-error" id="pwError"></p>
+      <button class="btn" type="submit">Update password</button>
+      <p class="muted" style="font-size:13px;margin:8px 0 0">This signs you out on your other devices.</p>
+    </form>
+
+    <div class="row" style="justify-content:space-between;margin-top:18px">
+      <button class="btn danger" id="logoutBtn">Sign out</button>
+      <button class="btn" id="closeSheet">Done</button>
     </div>
   </div>`;
   $sheet.querySelector('#closeSheet').onclick = () => $sheet.close();
@@ -739,6 +871,31 @@ document.getElementById('userMenuBtn').addEventListener('click', () => {
     location.hash = '#/';
     route();
   };
+  $sheet.querySelector('#nameForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    try {
+      const { user } = await api('PATCH', '/api/me', { displayName: e.target.displayName.value });
+      state.me = user;
+      $sheet.querySelector('#meName').textContent = user.displayName;
+      document.getElementById('userMenuBtn').innerHTML = avatar(user);
+      $sheet.addEventListener('close', route, { once: true }); // refresh greetings etc. behind the sheet
+      toast('Name updated');
+    } catch (err) {
+      toast(err.message, { error: true });
+    }
+  });
+  $sheet.querySelector('#pwForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const err$ = $sheet.querySelector('#pwError');
+    err$.textContent = '';
+    try {
+      await api('POST', '/api/me/password', { current: e.target.current.value, next: e.target.next.value });
+      e.target.reset();
+      toast('Password updated');
+    } catch (err) {
+      err$.textContent = err.message;
+    }
+  });
   $sheet.showModal();
 });
 $sheet.addEventListener('click', (e) => e.target === $sheet && $sheet.close());
@@ -755,6 +912,7 @@ async function route() {
     }
 
     const [, page = '', arg = ''] = location.hash.replace(/^#\/?/, '/').split('/');
+    if (page === 'reset') return await renderReset(decodeURIComponent(arg));
     if (!state.me) return renderAuth(page === 'join' ? 'signup' : 'login', page === 'join' ? decodeURIComponent(arg) : '');
     if (page === 'join') {
       location.replace('#/');
