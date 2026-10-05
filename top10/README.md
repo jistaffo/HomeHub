@@ -96,7 +96,7 @@ TMDB's terms require crediting them, which the footer on every page does.
 Your friends need a URL they can reach, and the data file must live on
 storage that survives restarts.
 
-- **Render (easiest):** `top10/render.yaml` is ready to use. On Render, choose
+- **Render (easiest):** `render.yaml` (at the repository root) is ready to use. On Render, choose
   New → Blueprint, pick this repo, and paste your keys when asked. It uses
   the Starter plan with a 1 GB persistent disk; the free plan has no disk, so
   lists would be wiped on every deploy. Render gives you an HTTPS URL.

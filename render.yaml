@@ -1,5 +1,7 @@
-# One-click deploy on Render: New → Blueprint → pick this repo.
-# The persistent disk keeps everyone's lists across deploys.
+# Render Blueprint for the Top 10 movie app (in top10/).
+# Render: New → Blueprint → pick this repo. The persistent disk keeps
+# everyone's lists across deploys. Add ANTHROPIC_API_KEY later under the
+# service's Environment tab if you want spoiler-free rewrites.
 services:
   - type: web
     name: top10
@@ -15,8 +17,6 @@ services:
       - key: TMDB_API_KEY
         sync: false
       - key: OMDB_API_KEY
-        sync: false
-      - key: ANTHROPIC_API_KEY
         sync: false
     disk:
       name: top10-data

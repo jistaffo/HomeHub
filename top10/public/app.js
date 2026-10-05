@@ -450,7 +450,7 @@ async function renderMyList(categoryId) {
     if (wrap.querySelector('.adder')) return; // keep focus + query while editing
     wrap.innerHTML = `<div class="adder">
       <span class="glass">🔍</span>
-      <input class="search-input" id="search" type="search" placeholder="Add a movie — search by title (add a year to narrow it)" autocomplete="off" ${state.config.moviesConfigured ? '' : 'disabled'}>
+      <input class="search-input" id="search" type="search" placeholder="Add a movie, e.g. “Heat 1995”" autocomplete="off" ${state.config.moviesConfigured ? '' : 'disabled'}>
       <ul class="results" id="results" hidden></ul>
     </div>`;
     bindSearch(wrap.querySelector('#search'), wrap.querySelector('#results'));
@@ -513,7 +513,7 @@ async function renderMyList(categoryId) {
         const fresh = document.getElementById('search');
         if (fresh) {
           fresh.disabled = false;
-          fresh.placeholder = 'Add a movie — search by title (add a year to narrow it)';
+          fresh.placeholder = 'Add a movie, e.g. “Heat 1995”';
           fresh.focus();
         }
       }

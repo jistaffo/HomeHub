@@ -96,7 +96,13 @@ function startSession(req, res, user) {
 const isOwner = (u) => Boolean(u) && u.id === data.ownerId;
 const publicUser = (u) => ({ id: u.id, username: u.username, displayName: u.displayName, color: u.color, isOwner: isOwner(u) });
 
-const COLORS = ['#e4572e', '#17bebb', '#ffc914', '#76b041', '#a259ff', '#ff6f91', '#2e86de', '#f39c12'];
+// Avatar colors: warm, painterly, and all readable with white text.
+const COLORS = ['#c9552a', '#3f84ad', '#5a8a35', '#b0577a', '#b87d1e', '#6f5fa3', '#2f8478', '#9a4f35'];
+const OLD_COLORS = ['#e4572e', '#17bebb', '#ffc914', '#76b041', '#a259ff', '#ff6f91', '#2e86de', '#f39c12'];
+for (const u of data.users) {
+  const i = OLD_COLORS.indexOf(u.color);
+  if (i >= 0) u.color = COLORS[i];
+}
 
 function validDisplayName(name) {
   const n = String(name || '').trim();
@@ -470,7 +476,7 @@ function serveStatic(req, res, pathname) {
     'referrer-policy': 'same-origin',
     'x-frame-options': 'DENY',
     'content-security-policy':
-      "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' https: data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+      "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' https: data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
   });
   fs.createReadStream(file).pipe(res);
 }
