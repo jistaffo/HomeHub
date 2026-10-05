@@ -16,6 +16,13 @@ their Top 10 movies:
   the whole group side by side for one category and builds a points-based
   group ranking. Any list can also get a **public read-only link** for people
   outside the group.
+- **Movie journal:** a private log of everything you watch, with the date,
+  a ½–5 star rating and your thoughts, grouped by year with averages.
+  **Import notes** reads a pasted notes file (`Title (Year) - 4 - thoughts`,
+  with plain year lines like `2026` marking when you watched them), matches
+  each line to a movie, and lets you review the matches before saving.
+  Friends see a **Recently watched** shelf (the movie, stars and date, never
+  your notes). Entries can be hidden, and imported history never appears there.
 - Add movies by searching. Reorder by dragging (desktop) or with the ▲▼
   arrows (phone). Changes save automatically.
 
@@ -131,6 +138,7 @@ npm test      # API + movie-service tests against mock OMDb, TMDB and Claude (no
 server.js            HTTP server, accounts, list/compare/share routes, static files
 lib/movies.js        TMDB + OMDb (+ Claude) integration, merging and caching
 lib/auth.js          password hashing, tokens, reset links
+lib/journal.js       journal validation + the notes-file parser
 lib/store.js         JSON-file persistence (atomic writes, daily backups)
 scripts/reset-link.js  command-line password reset for a locked-out owner
 lib/categories.js    list categories and year rules

@@ -195,6 +195,105 @@ function hydrate(items, rerender) {
   );
 }
 
+// ---------- movie search box ----------
+
+// Type-ahead movie search. `reasonFor(result)` returns why a result can't be
+// picked ('' if it can); `onPick(result)` does the work and may throw.
+function moviePicker($input, $results, { reasonFor = () => '', onPick, busyText = (r) => `Loading ${r.title}…` }) {
+  const placeholder = $input.placeholder;
+  let timer;
+  let results = [];
+  let active = -1;
+  let seq = 0;
+
+  const close = () => {
+    $results.hidden = true;
+    active = -1;
+  };
+  const selectable = (i) => results[i] && !reasonFor(results[i]);
+  const paint = () => {
+    $results.innerHTML = results.length
+      ? results
+          .map((r, i) => {
+            const reason = reasonFor(r);
+            return `<li class="result ${reason ? 'disabled' : ''} ${i === active ? 'active' : ''}" data-i="${i}">
+              ${r.poster ? `<img src="${esc(r.poster)}" alt="">` : '<div class="ph"></div>'}
+              <div><div class="r-title">${esc(r.title)}</div><div class="r-sub">${esc(r.year)}${reason ? ` · ${esc(reason)}` : ''}</div></div>
+            </li>`;
+          })
+          .join('')
+      : '<li class="result disabled"><span class="muted">No movies found</span></li>';
+    $results.hidden = false;
+  };
+
+  async function pick(i) {
+    if (!selectable(i)) return;
+    const r = results[i];
+    close();
+    $input.value = '';
+    $input.disabled = true;
+    $input.placeholder = busyText(r);
+    try {
+      await onPick(r);
+    } catch (err) {
+      toast(err.message, { error: true });
+    } finally {
+      if ($input.isConnected) {
+        $input.disabled = false;
+        $input.placeholder = placeholder;
+        $input.focus();
+      }
+    }
+  }
+
+  $input.addEventListener('input', () => {
+    clearTimeout(timer);
+    const q = $input.value.trim();
+    if (q.length < 2) return close();
+    timer = setTimeout(async () => {
+      const mine = ++seq;
+      try {
+        const data = await api('GET', `/api/movies/search?q=${encodeURIComponent(q)}`);
+        if (mine !== seq) return;
+        results = data.results;
+        active = results.findIndex((_, i) => selectable(i));
+        paint();
+      } catch (err) {
+        toast(err.message, { error: true });
+      }
+    }, 250);
+  });
+  $input.addEventListener('keydown', (e) => {
+    if ($results.hidden) return;
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      const dir = e.key === 'ArrowDown' ? 1 : -1;
+      for (let n = 0, i = active; n < results.length; n++) {
+        i = (i + dir + results.length) % results.length;
+        if (selectable(i)) {
+          active = i;
+          break;
+        }
+      }
+      paint();
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      pick(active);
+    } else if (e.key === 'Escape') {
+      e.stopPropagation(); // don't also close an enclosing dialog
+      close();
+    }
+  });
+  $results.addEventListener('mousedown', (e) => {
+    const li = e.target.closest('.result');
+    if (li) {
+      e.preventDefault();
+      pick(Number(li.dataset.i));
+    }
+  });
+  $input.addEventListener('blur', () => setTimeout(close, 150));
+}
+
 // ---------- auth ----------
 
 function renderAuth(mode = 'login', inviteCode = '') {
@@ -248,7 +347,7 @@ function renderAuth(mode = 'login', inviteCode = '') {
 
 async function renderHome() {
   loading();
-  const [{ lists }, friends] = await Promise.all([api('GET', '/api/my-lists'), api('GET', '/api/friends')]);
+  const [{ lists }, friends, recent] = await Promise.all([api('GET', '/api/my-lists'), api('GET', '/api/friends'), api('GET', '/api/recent')]);
   const byCat = Object.fromEntries(lists.map((l) => [l.category, l]));
   const others = friends.people.filter((p) => !p.isMe);
 
@@ -258,13 +357,18 @@ async function renderHome() {
         <h1>Hi, ${esc(state.me.displayName)}</h1>
         <p class="sub">Pick a list to start ranking. Your friends see your lists automatically.</p>
       </div>
+      <button class="btn primary" id="homeLog">+ Log a movie</button>
     </div>
     ${
       friends.recent.length
         ? `<h2 class="section-title" style="margin-top:0">Latest from friends</h2>
-           <div class="feed">${friends.recent.slice(0, 3).map(feedItem).join('')}</div>
-           <h2 class="section-title">Your lists</h2>`
-        : others.length
+           <div class="feed">${friends.recent.slice(0, 3).map(feedItem).join('')}</div>`
+        : ''
+    }
+    ${recent.entries.length ? `<h2 class="section-title"${friends.recent.length ? '' : ' style="margin-top:0"'}>Recently watched by friends</h2>${recentShelf(recent.entries)}` : ''}
+    ${friends.recent.length || recent.entries.length ? '<h2 class="section-title">Your lists</h2>' : ''}
+    ${
+      friends.recent.length || recent.entries.length || others.length
           ? ''
           : `<div class="card" style="margin-bottom:20px">
                <p style="margin-top:0">It’s just you so far. Send your friends the invite link:</p>
@@ -296,6 +400,7 @@ async function renderHome() {
         .join('')}
     </div>`;
   bindInviteRow();
+  document.getElementById('homeLog').onclick = () => openJournalSheet(null, () => (location.hash = '#/journal'));
 }
 
 function feedItem(l) {
@@ -457,49 +562,11 @@ async function renderMyList(categoryId) {
   }
 
   function bindSearch($input, $results) {
-    let timer;
-    let results = [];
-    let active = -1;
-    let seq = 0;
-
-    const close = () => {
-      $results.hidden = true;
-      active = -1;
-    };
-    const paint = () => {
-      if (!results.length) {
-        $results.innerHTML = '<li class="result disabled"><span class="muted">No movies found</span></li>';
-        $results.hidden = false;
-        return;
-      }
-      $results.innerHTML = results
-        .map((r, i) => {
-          const already = onList(r);
-          const ok = fits(cat, r.year);
-          const reason = already ? 'Already on your list' : ok ? '' : `Outside ${cat.name}`;
-          return `<li class="result ${reason ? 'disabled' : ''} ${i === active ? 'active' : ''}" data-i="${i}">
-            ${r.poster ? `<img src="${esc(r.poster)}" alt="">` : '<div class="ph"></div>'}
-            <div><div class="r-title">${esc(r.title)}</div><div class="r-sub">${esc(r.year)}${reason ? ` · ${reason}` : ''}</div></div>
-          </li>`;
-        })
-        .join('');
-      $results.hidden = false;
-    };
-    const selectable = (i) => {
-      const r = results[i];
-      return r && fits(cat, r.year) && !onList(r);
-    };
-
     const onList = (r) => items.some((it) => it.imdbID === r.imdbID || (r.tmdbId && it.movie?.tmdbId === r.tmdbId));
-
-    async function pick(i) {
-      if (!selectable(i)) return;
-      const r = results[i];
-      close();
-      $input.value = '';
-      $input.disabled = true;
-      $input.placeholder = `Adding ${r.title}…`;
-      try {
+    moviePicker($input, $results, {
+      reasonFor: (r) => (onList(r) ? 'Already on your list' : fits(cat, r.year) ? '' : `Outside ${cat.name}`),
+      busyText: (r) => `Adding ${r.title}…`,
+      async onPick(r) {
         const movie = await api('GET', `/api/movies/${encodeURIComponent(r.id)}`);
         if (items.some((it) => it.imdbID === movie.imdbID)) throw new Error(`${movie.title} is already on your list`);
         if (!fits(cat, movie.year)) throw new Error(`${movie.title} (${movie.year}) is outside ${cat.name}`);
@@ -507,63 +574,8 @@ async function renderMyList(categoryId) {
         draw();
         await save();
         toast(`Added ${movie.title} at #${items.length}`);
-      } catch (err) {
-        toast(err.message, { error: true });
-      } finally {
-        const fresh = document.getElementById('search');
-        if (fresh) {
-          fresh.disabled = false;
-          fresh.placeholder = 'Add a movie, e.g. “Heat 1995”';
-          fresh.focus();
-        }
-      }
-    }
-
-    $input.addEventListener('input', () => {
-      clearTimeout(timer);
-      const q = $input.value.trim();
-      if (q.length < 2) return close();
-      timer = setTimeout(async () => {
-        const mine = ++seq;
-        try {
-          const data = await api('GET', `/api/movies/search?q=${encodeURIComponent(q)}`);
-          if (mine !== seq) return;
-          results = data.results;
-          active = results.findIndex((_, i) => selectable(i));
-          paint();
-        } catch (err) {
-          toast(err.message, { error: true });
-        }
-      }, 250);
+      },
     });
-    $input.addEventListener('keydown', (e) => {
-      if ($results.hidden) return;
-      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-        e.preventDefault();
-        const dir = e.key === 'ArrowDown' ? 1 : -1;
-        for (let n = 0, i = active; n < results.length; n++) {
-          i = (i + dir + results.length) % results.length;
-          if (selectable(i)) {
-            active = i;
-            break;
-          }
-        }
-        paint();
-      } else if (e.key === 'Enter') {
-        e.preventDefault();
-        pick(active);
-      } else if (e.key === 'Escape') {
-        close();
-      }
-    });
-    $results.addEventListener('mousedown', (e) => {
-      const li = e.target.closest('.result');
-      if (li) {
-        e.preventDefault();
-        pick(Number(li.dataset.i));
-      }
-    });
-    $input.addEventListener('blur', () => setTimeout(close, 150));
   }
 
   document.getElementById('shareBtn').addEventListener('click', async () => {
@@ -691,6 +703,345 @@ async function renderCompare(categoryId) {
     }`;
 }
 
+// ---------- journal ----------
+
+const today = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
+function fmtWatched(w) {
+  if (!w || w.length === 4) return '';
+  const d = new Date(`${w}T12:00:00`);
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', ...(d.getFullYear() !== new Date().getFullYear() ? { year: 'numeric' } : {}) });
+}
+
+// Read-only stars: a grey row with a gold row clipped on top.
+function stars(rating, size = '') {
+  if (rating == null) return '<span class="stars-none">no rating</span>';
+  return `<span class="stars ${size}" role="img" aria-label="${rating} out of 5 stars" title="${rating} / 5"><span class="stars-fill" style="width:${(rating / 5) * 100}%"></span></span>`;
+}
+
+// Half-star picker: a transparent range input laid over the stars.
+function starInputHTML(value) {
+  return `<div class="star-input">
+    <div class="stars lg"><span class="stars-fill" style="width:${((value || 0) / 5) * 100}%"></span>
+      <input type="range" min="0" max="5" step="0.5" value="${value || 0}" aria-label="Rating out of 5 stars"></div>
+    <span class="star-value">${value ? `${value} / 5` : 'No rating'}</span>
+    <button type="button" class="btn ghost star-clear" ${value ? '' : 'hidden'}>Clear</button>
+  </div>`;
+}
+function bindStarInput(root, onChange) {
+  const input = root.querySelector('.star-input input');
+  const fill = root.querySelector('.star-input .stars-fill');
+  const label = root.querySelector('.star-value');
+  const clear = root.querySelector('.star-clear');
+  const set = (v) => {
+    input.value = v;
+    fill.style.width = `${(v / 5) * 100}%`;
+    label.textContent = v ? `${v} / 5` : 'No rating';
+    clear.hidden = !v;
+    onChange(v ? Number(v) : null);
+  };
+  input.addEventListener('input', () => set(Math.max(0, Number(input.value))));
+  clear.addEventListener('click', () => set(0));
+}
+
+async function renderJournal() {
+  loading();
+  const { entries } = await api('GET', '/api/journal');
+  let filter = '';
+
+  $app.innerHTML = `
+    <div class="page-head">
+      <div>
+        <h1>Movie journal</h1>
+        <p class="sub">Your private notes on everything you watch. Friends see what you watched and your stars — never your notes.</p>
+      </div>
+      <div class="row">
+        <button class="btn" id="importBtn">Import notes</button>
+        <button class="btn primary" id="logBtn">+ Log a movie</button>
+      </div>
+    </div>
+    ${entries.length ? '<div class="adder"><span class="glass">🔍</span><input class="search-input" id="jFilter" type="search" placeholder="Search your journal" autocomplete="off"></div>' : ''}
+    <div id="jList"></div>`;
+
+  const $list = document.getElementById('jList');
+  function draw() {
+    if (!entries.length) {
+      $list.innerHTML = `<div class="card journal-empty">
+        <p style="margin-top:0"><strong>Nothing logged yet.</strong></p>
+        <p class="muted">Log the next movie you watch, or bring in the notes you already keep — paste them in and we’ll match every movie for you.</p>
+        <div class="row"><button class="btn primary" data-act="log">+ Log a movie</button><button class="btn" data-act="import">Import notes</button></div>
+      </div>`;
+      $list.querySelector('[data-act=log]').onclick = () => openJournalSheet(null, renderJournal);
+      $list.querySelector('[data-act=import]').onclick = () => openImportSheet(renderJournal);
+      return;
+    }
+    const q = filter.toLowerCase();
+    const shown = entries.filter((e) => !q || e.movie.title.toLowerCase().includes(q) || e.note.toLowerCase().includes(q));
+    const years = [...new Set(shown.map((e) => e.watchedOn.slice(0, 4)))];
+    $list.innerHTML = years.length
+      ? years
+          .map((y) => {
+            const group = shown.filter((e) => e.watchedOn.startsWith(y));
+            const rated = group.filter((e) => e.rating != null);
+            const avg = rated.length ? (rated.reduce((n, e) => n + e.rating, 0) / rated.length).toFixed(1) : null;
+            return `<section class="j-year">
+              <h2 class="section-title j-year-head"><span>${y}</span><span class="muted">${group.length} movie${group.length === 1 ? '' : 's'}${avg ? ` · avg ${avg}★` : ''}</span></h2>
+              <ul class="j-entries">${group.map(entryHTML).join('')}</ul>
+            </section>`;
+          })
+          .join('')
+      : '<p class="muted">Nothing matches that search.</p>';
+    $list.querySelectorAll('.j-entry').forEach((el) =>
+      el.addEventListener('click', () => openJournalSheet(entries.find((e) => e.id === el.dataset.id), renderJournal)),
+    );
+  }
+  function entryHTML(e) {
+    return `<li class="j-entry" data-id="${esc(e.id)}" tabindex="0" role="button" aria-label="Edit ${esc(e.movie.title)}">
+      ${posterImg(e.movie.poster, 'j-poster')}
+      <div class="j-body">
+        <div class="j-top">
+          <h3>${esc(e.movie.title)} <span class="year">${esc(e.movie.year || '')}</span></h3>
+          <span class="j-when">${fmtWatched(e.watchedOn)}${e.hidden ? ' · <span title="Hidden from friends">🔒</span>' : ''}</span>
+        </div>
+        ${stars(e.rating)}
+        ${e.note ? `<p class="j-note">${esc(e.note)}</p>` : ''}
+      </div>
+    </li>`;
+  }
+
+  document.getElementById('logBtn').onclick = () => openJournalSheet(null, renderJournal);
+  document.getElementById('importBtn').onclick = () => openImportSheet(renderJournal);
+  document.getElementById('jFilter')?.addEventListener('input', (e) => {
+    filter = e.target.value.trim();
+    draw();
+  });
+  $list.addEventListener('keydown', (e) => {
+    if ((e.key === 'Enter' || e.key === ' ') && e.target.classList.contains('j-entry')) {
+      e.preventDefault();
+      e.target.click();
+    }
+  });
+  draw();
+}
+
+// Create (entry = null) or edit a journal entry.
+function openJournalSheet(entry, onDone) {
+  const state = {
+    movieId: null,
+    movie: entry?.movie || null,
+    rating: entry?.rating ?? null,
+    watchedOn: entry?.watchedOn || today(),
+  };
+  const yearOnly = state.watchedOn.length === 4;
+
+  $sheet.innerHTML = `<form class="sheet-body" id="jForm">
+    <h2>${entry ? 'Edit entry' : 'Log a movie'}</h2>
+    <div class="field">
+      <label for="jSearch">Movie</label>
+      <div id="jPicked"></div>
+      <div class="adder" style="margin:0"><span class="glass">🔍</span>
+        <input class="search-input" id="jSearch" type="search" placeholder="${entry ? 'Search to change the movie' : 'Search for a movie'}" autocomplete="off">
+        <ul class="results" id="jResults" hidden></ul>
+      </div>
+    </div>
+    <div class="field"><label>Your rating</label>${starInputHTML(state.rating)}</div>
+    <div class="field">
+      <label for="jDate">Watched on</label>
+      ${
+        yearOnly
+          ? `<div class="row"><span class="chip">Sometime in ${esc(state.watchedOn)}</span><button type="button" class="btn ghost" id="jSetDate">Set exact date</button></div>
+             <input id="jDate" type="date" max="${today()}" hidden>`
+          : `<input id="jDate" type="date" value="${esc(state.watchedOn)}" max="${today()}" required>`
+      }
+    </div>
+    <div class="field">
+      <label for="jNote">Your thoughts <span class="muted" style="font-weight:400">(private — only you see this)</span></label>
+      <textarea id="jNote" class="note-edit" maxlength="2000" rows="4" placeholder="What did you think?">${esc(entry?.note || '')}</textarea>
+    </div>
+    <label class="check"><input type="checkbox" id="jHidden" ${entry?.hidden ? 'checked' : ''}> Hide this one from friends’ “Recently watched”</label>
+    <p class="form-error" id="jError"></p>
+    <div class="row" style="justify-content:space-between">
+      ${entry ? '<button type="button" class="btn danger" id="jDelete">Delete</button>' : '<span></span>'}
+      <div class="row"><button type="button" class="btn" id="jCancel">Cancel</button><button type="submit" class="btn primary">${entry ? 'Save' : 'Add to journal'}</button></div>
+    </div>
+  </form>`;
+
+  const paintPicked = () => {
+    const m = state.movie;
+    $sheet.querySelector('#jPicked').innerHTML = m
+      ? `<div class="picked">${posterImg(m.poster, 'j-poster sm')}<div><strong>${esc(m.title)}</strong> <span class="muted">${esc(m.year || '')}</span></div></div>`
+      : '';
+  };
+  paintPicked();
+  moviePicker($sheet.querySelector('#jSearch'), $sheet.querySelector('#jResults'), {
+    busyText: (r) => `Selected ${r.title}`,
+    async onPick(r) {
+      state.movieId = r.id;
+      state.movie = { title: r.title, year: r.year, poster: r.poster };
+      paintPicked();
+    },
+  });
+  bindStarInput($sheet, (v) => (state.rating = v));
+  $sheet.querySelector('#jSetDate')?.addEventListener('click', (e) => {
+    const input = $sheet.querySelector('#jDate');
+    input.hidden = false;
+    const endOfYear = `${state.watchedOn}-12-31`;
+    input.value = endOfYear > today() ? today() : endOfYear;
+    e.target.closest('.row').remove();
+    input.focus();
+  });
+  $sheet.querySelector('#jCancel').onclick = () => $sheet.close();
+  $sheet.querySelector('#jDelete')?.addEventListener('click', async () => {
+    if (!confirm(`Delete your entry for ${entry.movie.title}?`)) return;
+    try {
+      await api('DELETE', `/api/journal/${entry.id}`);
+      $sheet.close();
+      toast('Entry deleted');
+      onDone();
+    } catch (err) {
+      toast(err.message, { error: true });
+    }
+  });
+  $sheet.querySelector('#jForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const $err = $sheet.querySelector('#jError');
+    if (!state.movie) return ($err.textContent = 'Search for the movie you watched first.');
+    const dateInput = $sheet.querySelector('#jDate');
+    const body = {
+      rating: state.rating,
+      note: $sheet.querySelector('#jNote').value,
+      watchedOn: dateInput.hidden ? state.watchedOn : dateInput.value,
+      hidden: $sheet.querySelector('#jHidden').checked,
+    };
+    if (state.movieId) body.movieId = state.movieId;
+    const btn = e.target.querySelector('button[type=submit]');
+    btn.disabled = true;
+    try {
+      await api(entry ? 'PATCH' : 'POST', entry ? `/api/journal/${entry.id}` : '/api/journal', body);
+      $sheet.close();
+      toast(entry ? 'Saved' : `Logged ${state.movie.title}`);
+      onDone();
+    } catch (err) {
+      $err.textContent = err.message;
+      btn.disabled = false;
+    }
+  });
+  $sheet.showModal();
+  if (!entry) $sheet.querySelector('#jSearch').focus();
+}
+
+// Paste a notes file → review the matches → import.
+function openImportSheet(onDone) {
+  $sheet.innerHTML = `<div class="sheet-body sheet-wide">
+    <h2>Import your movie notes</h2>
+    <p class="muted" style="margin-top:0">Paste your notes below. Each movie goes on its own line, like
+      <code>Companion (2025) - 4 - A perfect blend…</code>. A line with just a year (like <code>2026</code>) means the movies under it were watched that year.</p>
+    <textarea id="impText" class="note-edit" rows="10" placeholder="2026&#10;Companion (2025) - 4 - A perfect blend of light horror with dark sci fi.&#10;Heretic (2024) - 4 - A great horror film…"></textarea>
+    <label class="check" style="margin-top:10px">Within each year, my most recent movie is at the
+      <select id="impOrder"><option value="bottom">bottom</option><option value="top">top</option></select></label>
+    <p class="form-error" id="impError"></p>
+    <div class="row" style="justify-content:flex-end"><button class="btn" id="impCancel">Cancel</button><button class="btn primary" id="impNext">Find my movies</button></div>
+  </div>`;
+  $sheet.querySelector('#impCancel').onclick = () => $sheet.close();
+  $sheet.querySelector('#impNext').onclick = async (e) => {
+    const text = $sheet.querySelector('#impText').value;
+    const newestAt = $sheet.querySelector('#impOrder').value;
+    if (!text.trim()) return ($sheet.querySelector('#impError').textContent = 'Paste your notes first.');
+    e.target.disabled = true;
+    e.target.textContent = 'Matching movies…';
+    try {
+      const preview = await api('POST', '/api/journal/import/preview', { text });
+      showImportReview(preview, newestAt, onDone);
+    } catch (err) {
+      $sheet.querySelector('#impError').textContent = err.message;
+      e.target.disabled = false;
+      e.target.textContent = 'Find my movies';
+    }
+  };
+  $sheet.showModal();
+  $sheet.querySelector('#impText').focus();
+}
+
+function showImportReview({ entries, skipped }, newestAt, onDone) {
+  const rows = entries.map((e) => ({ ...e, include: true, movieId: e.match?.id || null }));
+  const matched = rows.filter((r) => r.match).length;
+  $sheet.innerHTML = `<div class="sheet-body sheet-wide">
+    <h2>Check the matches</h2>
+    <p class="muted" style="margin-top:0">Found <strong>${rows.length}</strong> movies; matched <strong>${matched}</strong> to a poster and details.
+      Untick anything you don’t want. Unmatched movies are still imported with the title you wrote.</p>
+    <ul class="imp-list">${rows
+      .map(
+        (r, i) => `<li class="imp-row ${r.match ? '' : 'unmatched'}">
+          <input type="checkbox" checked data-i="${i}" aria-label="Import ${esc(r.title)}">
+          ${posterImg(r.match?.poster, 'j-poster sm')}
+          <div class="imp-text">
+            <div><strong>${esc(r.title)}</strong> <span class="muted">(${esc(r.year)})</span> ${stars(r.rating, 'sm')}</div>
+            <div class="imp-sub">${
+              r.match
+                ? `${r.match.title !== r.title || r.match.year !== r.year ? `Matched to <strong>${esc(r.match.title)}</strong> (${esc(r.match.year)}) · ` : ''}watched ${r.watchedYear}`
+                : `<span class="warn">No match found</span> · watched ${r.watchedYear}`
+            }${r.note ? ` · “${esc(r.note.slice(0, 60))}${r.note.length > 60 ? '…' : ''}”` : ''}</div>
+          </div>
+        </li>`,
+      )
+      .join('')}</ul>
+    ${
+      skipped.length
+        ? `<details class="imp-skipped"><summary>${skipped.length} line${skipped.length === 1 ? '' : 's'} weren’t movies and will be skipped</summary>
+            <ul>${skipped.map((s) => `<li><span class="muted">Line ${s.line}:</span> ${esc(s.text)}</li>`).join('')}</ul></details>`
+        : ''
+    }
+    <p class="form-error" id="impError"></p>
+    <div class="row" style="justify-content:flex-end"><button class="btn" id="impBack">Back</button><button class="btn primary" id="impGo">Import ${rows.length} movies</button></div>
+  </div>`;
+
+  const $go = $sheet.querySelector('#impGo');
+  const count = () => rows.filter((r) => r.include).length;
+  $sheet.querySelectorAll('.imp-row input').forEach((cb) =>
+    cb.addEventListener('change', () => {
+      rows[cb.dataset.i].include = cb.checked;
+      $go.textContent = `Import ${count()} movies`;
+      $go.disabled = !count();
+    }),
+  );
+  $sheet.querySelector('#impBack').onclick = () => openImportSheet(onDone);
+  $go.onclick = async () => {
+    $go.disabled = true;
+    $go.textContent = 'Importing…';
+    try {
+      const picked = rows
+        .filter((r) => r.include)
+        .map(({ title, year, rating, note, watchedYear, movieId }) => ({ title, year, rating, note, watchedYear, movieId }));
+      const { imported, duplicates } = await api('POST', '/api/journal/import', { entries: picked, newestAt });
+      $sheet.close();
+      toast(`Imported ${imported} movie${imported === 1 ? '' : 's'}${duplicates ? ` (${duplicates} already in your journal)` : ''}`);
+      onDone();
+    } catch (err) {
+      $sheet.querySelector('#impError').textContent = err.message;
+      $go.disabled = false;
+      $go.textContent = `Import ${count()} movies`;
+    }
+  };
+  $sheet.scrollTop = 0;
+}
+
+// Friends' recently watched, as a horizontal shelf of posters.
+function recentShelf(entries) {
+  return `<div class="shelf">${entries
+    .map(
+      (e) => `<div class="shelf-item" title="${esc(e.user.displayName)} watched ${esc(e.movie.title)}">
+        <div class="shelf-poster">${posterImg(e.movie.poster)}<span class="shelf-avatar">${avatar(e.user, 'sm')}</span></div>
+        <div class="shelf-title">${esc(e.movie.title)}</div>
+        <div class="shelf-meta">${stars(e.rating, 'sm')}</div>
+        <div class="shelf-meta muted">${esc(e.user.displayName)} · ${fmtWatched(e.watchedOn)}</div>
+      </div>`,
+    )
+    .join('')}</div>`;
+}
+
 // ---------- friends ----------
 
 async function renderFriends() {
@@ -731,6 +1082,11 @@ async function renderFriends() {
                   .join('')
               : '<span class="muted" style="font-size:14px">No lists yet</span>'
           }</div>
+          ${
+            p.watched?.length
+              ? `<p class="watched-line"><span class="muted">Recently watched:</span> ${p.watched.map((w) => `${esc(w.title)}${w.rating != null ? ` <span class="muted">${w.rating}★</span>` : ''}`).join(' · ')}</p>`
+              : ''
+          }
         </div>`,
       )
       .join('')}`;
@@ -921,7 +1277,7 @@ async function route() {
 
     $topbar.hidden = false;
     document.getElementById('userMenuBtn').innerHTML = avatar(state.me);
-    const navKey = page === 'friends' || page === 'compare' || page === 'view' ? 'friends' : 'home';
+    const navKey = page === 'friends' || page === 'compare' || page === 'view' ? 'friends' : page === 'journal' ? 'journal' : 'home';
     document.querySelectorAll('[data-nav]').forEach((a) => a.classList.toggle('active', a.dataset.nav === navKey));
 
     if (page === '') return await renderHome();
@@ -929,6 +1285,7 @@ async function route() {
     if (page === 'view') return await renderViewList(arg);
     if (page === 'compare') return await renderCompare(arg);
     if (page === 'friends') return await renderFriends();
+    if (page === 'journal') return await renderJournal();
     renderNotFound();
   } catch (err) {
     $app.innerHTML = `<div class="card"><strong>Something went wrong.</strong><p class="muted">${esc(err.message)}</p><a class="btn" href="#/">Go home</a></div>`;

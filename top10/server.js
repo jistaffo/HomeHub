@@ -13,6 +13,7 @@ const { Store } = await import('./lib/store.js');
 const { MovieService, httpError } = await import('./lib/movies.js');
 const { CATEGORIES, MAX_ITEMS, getCategory, yearFits } = await import('./lib/categories.js');
 const auth = await import('./lib/auth.js');
+const journal = await import('./lib/journal.js');
 
 const PUBLIC_DIR = path.join(here, 'public');
 const PORT = Number(process.env.PORT || 4100);
@@ -136,6 +137,7 @@ function removeUser(userId) {
   data.lists = data.lists.filter((l) => l.ownerId !== userId);
   data.sessions = data.sessions.filter((s) => s.userId !== userId);
   data.resets = (data.resets || []).filter((r) => r.userId !== userId);
+  data.journal = (data.journal || []).filter((e) => e.userId !== userId);
   store.save();
 }
 
@@ -330,7 +332,12 @@ route('GET', '/api/friends', async (req, { me }) => {
   const people = data.users.map((u) => {
     const lists = data.lists.filter((l) => l.ownerId === u.id && l.items.length).map(listSummary);
     const lastActive = Math.max(0, ...lists.map((l) => l.updatedAt));
-    return { ...publicUser(u), isMe: u.id === me.id, lists, lastActive };
+    const watched = (data.journal || [])
+      .filter((e) => e.userId === u.id && shareable(e))
+      .sort(byNewest)
+      .slice(0, 3)
+      .map((e) => ({ title: journalMovie(e).title, rating: e.rating, watchedOn: e.watchedOn }));
+    return { ...publicUser(u), isMe: u.id === me.id, lists, lastActive, watched };
   });
   people.sort((a, b) => (a.isMe ? -1 : b.isMe ? 1 : b.lastActive - a.lastActive));
   const recent = data.lists
@@ -425,6 +432,188 @@ route('GET', '/api/compare/:category', async (req, { me, params }) => {
     .sort((a, b) => b.points - a.points || b.picks.length - a.picks.length)
     .slice(0, MAX_ITEMS);
   return { lists: lists.map((l) => listDetail(l, me)), consensus };
+});
+
+// ----- movie journal -----
+// Notes are private to their author. Friends only ever see the movie, the
+// star rating and the date, and only for dated entries not marked hidden
+// (imported, year-only history never shows up as "recently watched").
+
+data.journal ||= [];
+data.journalSeq ||= 0;
+
+function journalMovie(e) {
+  const cached = e.imdbID && movies.peek(e.imdbID);
+  return cached
+    ? { imdbID: cached.imdbID, title: cached.title, year: cached.year, poster: cached.poster, director: cached.director }
+    : { imdbID: e.imdbID, title: e.title, year: e.year, poster: null };
+}
+
+const journalOut = (e) => ({
+  id: e.id, watchedOn: e.watchedOn, rating: e.rating, note: e.note, hidden: Boolean(e.hidden), movie: journalMovie(e),
+});
+
+const byNewest = (a, b) => journal.sortKey(b).localeCompare(journal.sortKey(a));
+const shareable = (e) => !e.hidden && e.watchedOn.length === 10;
+
+// Fetch details for imported movies one at a time in the background, so a
+// big import never floods the movie APIs.
+let warmQueue = Promise.resolve();
+const warmLater = (id) => (warmQueue = warmQueue.then(() => movies.get(id).catch(() => {})));
+
+async function journalFields(body, existing = {}) {
+  const out = {};
+  if (body.movieId) {
+    const movie = await movies.get(String(body.movieId));
+    Object.assign(out, { imdbID: movie.imdbID, title: movie.title, year: movie.year });
+  } else if (!existing.id || body.title !== undefined) {
+    const title = String(body.title || '').trim();
+    if (!title || title.length > 200) throw httpError(400, 'Pick a movie (or type a title).');
+    const year = String(body.year || '').trim();
+    if (year && !/^\d{4}$/.test(year)) throw httpError(400, 'Release year should be four digits.');
+    Object.assign(out, { imdbID: null, title, year: year || null });
+  }
+  if (!existing.id || 'rating' in body) out.rating = journal.validRating(body.rating);
+  if (!existing.id || 'note' in body) {
+    const note = String(body.note || '');
+    if (note.length > journal.MAX_NOTE) throw httpError(400, `Notes are limited to ${journal.MAX_NOTE} characters.`);
+    out.note = note.trim();
+  }
+  if (!existing.id || 'watchedOn' in body) out.watchedOn = journal.validWatchedOn(body.watchedOn);
+  if (!existing.id || 'hidden' in body) out.hidden = Boolean(body.hidden);
+  return out;
+}
+
+route('GET', '/api/journal', async (req, { me }) => ({
+  entries: data.journal.filter((e) => e.userId === me.id).sort(byNewest).map(journalOut),
+}));
+
+route('POST', '/api/journal', async (req, { me }) => {
+  const body = await readJson(req);
+  const entry = { id: auth.newId(), userId: me.id, seq: ++data.journalSeq, createdAt: Date.now(), ...(await journalFields(body)) };
+  entry.updatedAt = entry.createdAt;
+  data.journal.push(entry);
+  store.save();
+  return journalOut(entry);
+});
+
+route('PATCH', '/api/journal/:id', async (req, { me, params }) => {
+  const entry = data.journal.find((e) => e.id === params.id && e.userId === me.id);
+  if (!entry) throw httpError(404, 'Journal entry not found');
+  Object.assign(entry, await journalFields(await readJson(req), entry), { updatedAt: Date.now() });
+  store.save();
+  return journalOut(entry);
+});
+
+route('DELETE', '/api/journal/:id', async (req, { me, params }) => {
+  const before = data.journal.length;
+  data.journal = data.journal.filter((e) => !(e.id === params.id && e.userId === me.id));
+  if (data.journal.length === before) throw httpError(404, 'Journal entry not found');
+  store.save();
+  return { ok: true };
+});
+
+// Step 1 of importing a notes file: parse it and suggest a movie for each
+// line. Nothing is saved yet.
+route('POST', '/api/journal/import/preview', async (req) => {
+  const { text } = await readJson(req);
+  if (String(text || '').length > 500_000) throw httpError(413, 'That’s a lot of notes! Try importing a year at a time.');
+  const { entries, skipped } = journal.parseNotes(text);
+  if (entries.length > 1000) throw httpError(400, 'Import up to 1,000 movies at a time.');
+
+  const findMatch = async (e) => {
+    if (!movies.configured) return null;
+    try {
+      const exact = await movies.search(`${e.title} ${e.year}`);
+      if (exact.length) return exact[0];
+      // Release years in notes are often off by one (festival vs. release).
+      const loose = await movies.search(e.title);
+      return loose.find((r) => Math.abs(Number(r.year) - Number(e.year)) <= 1) || null;
+    } catch {
+      return null;
+    }
+  };
+  const matches = new Array(entries.length);
+  let next = 0;
+  await Promise.all(
+    Array.from({ length: 4 }, async () => {
+      while (next < entries.length) {
+        const i = next++;
+        matches[i] = await findMatch(entries[i]);
+      }
+    }),
+  );
+  return {
+    entries: entries.map((e, i) => ({
+      ...e,
+      match: matches[i] && { id: matches[i].id, title: matches[i].title, year: matches[i].year, poster: matches[i].poster },
+    })),
+    skipped,
+  };
+});
+
+// Step 2: save the reviewed entries. `newestAt` says whether each year's
+// most recent movie is at the bottom (default) or top of the notes.
+route('POST', '/api/journal/import', async (req, { me }) => {
+  const body = await readJson(req);
+  const incoming = Array.isArray(body.entries) ? body.entries : null;
+  if (!incoming) throw httpError(400, 'entries must be an array');
+  if (incoming.length > 1000) throw httpError(400, 'Import up to 1,000 movies at a time.');
+  const ordered = body.newestAt === 'top' ? [...incoming].reverse() : incoming;
+
+  const prepared = [];
+  for (const raw of ordered) {
+    let imdbID = null;
+    if (raw.movieId) {
+      try {
+        imdbID = await movies.resolve(String(raw.movieId));
+      } catch {}
+    }
+    const title = String(raw.title || '').trim().slice(0, 200);
+    if (!title) continue;
+    const year = /^\d{4}$/.test(String(raw.year)) ? String(raw.year) : null;
+    prepared.push({
+      imdbID,
+      title,
+      year,
+      rating: journal.validRating(raw.rating),
+      note: String(raw.note || '').slice(0, journal.MAX_NOTE).trim(),
+      watchedOn: journal.validWatchedOn(String(raw.watchedYear || new Date().getFullYear())),
+    });
+  }
+
+  const mine = data.journal.filter((e) => e.userId === me.id);
+  const seen = new Set(mine.map((e) => `${e.imdbID || e.title.toLowerCase()}|${e.watchedOn}`));
+  let imported = 0;
+  let duplicates = 0;
+  const now = Date.now();
+  for (const e of prepared) {
+    const key = `${e.imdbID || e.title.toLowerCase()}|${e.watchedOn}`;
+    if (seen.has(key)) {
+      duplicates++;
+      continue;
+    }
+    seen.add(key);
+    data.journal.push({ id: auth.newId(), userId: me.id, seq: ++data.journalSeq, createdAt: now, updatedAt: now, hidden: false, ...e });
+    if (e.imdbID) warmLater(e.imdbID);
+    imported++;
+  }
+  store.save();
+  return { imported, duplicates };
+});
+
+// What friends have been watching lately (never includes notes).
+route('GET', '/api/recent', async (req, { me }) => {
+  const entries = data.journal
+    .filter((e) => e.userId !== me.id && shareable(e))
+    .sort(byNewest)
+    .slice(0, 24)
+    .map((e) => {
+      const user = data.users.find((u) => u.id === e.userId);
+      return { id: e.id, user: user && publicUser(user), watchedOn: e.watchedOn, rating: e.rating, movie: journalMovie(e) };
+    })
+    .filter((e) => e.user);
+  return { entries };
 });
 
 // ----- movies -----

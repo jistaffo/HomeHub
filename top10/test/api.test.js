@@ -234,3 +234,104 @@ test('daily backup snapshot is written', () => {
   assert.equal(files.length, 1);
   assert.match(files[0], /^db-\d{4}-\d{2}-\d{2}\.json$/);
 });
+
+// ---------- journal ----------
+
+const dan = client();
+const erin = client();
+
+test('journal: log, edit, privacy and recently watched', async () => {
+  const invite = (await alice('GET', '/api/friends')).body.inviteCode;
+  assert.equal((await dan('POST', '/api/signup', { username: 'dan', password: 'password1', inviteCode: invite })).status, 200);
+  assert.equal((await erin('POST', '/api/signup', { username: 'erin', password: 'password1', inviteCode: invite })).status, 200);
+
+  // Validation
+  assert.equal((await dan('POST', '/api/journal', { movieId: 'tt0111161', rating: 4.3, watchedOn: '2026-10-01' })).status, 400);
+  assert.equal((await dan('POST', '/api/journal', { movieId: 'tt0111161', rating: 6, watchedOn: '2026-10-01' })).status, 400);
+  assert.equal((await dan('POST', '/api/journal', { movieId: 'tt0111161', watchedOn: 'yesterday' })).status, 400);
+  assert.equal((await dan('POST', '/api/journal', { watchedOn: '2026-10-01' })).status, 400);
+
+  let r = await dan('POST', '/api/journal', { movieId: 'tmdb:105', rating: 4.5, note: 'Secret thoughts', watchedOn: '2026-10-01' });
+  assert.equal(r.status, 200);
+  assert.equal(r.body.movie.title, 'Back to the Future');
+  const id = r.body.id;
+  await dan('POST', '/api/journal', { movieId: 'tt0111161', rating: 5, watchedOn: '2026-10-03', hidden: true, note: 'guilty pleasure' });
+  await dan('POST', '/api/journal', { title: 'Some Short Film', year: '2019', watchedOn: '2026-09-20' });
+
+  const mine = (await dan('GET', '/api/journal')).body.entries;
+  assert.deepEqual(mine.map((e) => e.movie.title), ['The Shawshank Redemption', 'Back to the Future', 'Some Short Film']);
+  assert.equal(mine[1].note, 'Secret thoughts');
+
+  // Friends: no notes, no hidden entries
+  const recent = (await erin('GET', '/api/recent')).body.entries;
+  assert.deepEqual(recent.map((e) => e.movie.title), ['Back to the Future', 'Some Short Film']);
+  assert.ok(recent.every((e) => !('note' in e)));
+  assert.ok(!JSON.stringify(recent).includes('Secret thoughts'));
+  assert.equal(recent[0].rating, 4.5);
+  assert.equal(recent[0].user.username, 'dan');
+  assert.equal((await dan('GET', '/api/recent')).body.entries.length, 0, "your own entries aren't in your feed");
+  const danCard = (await erin('GET', '/api/friends')).body.people.find((p) => p.username === 'dan');
+  assert.deepEqual(danCard.watched.map((w) => w.title), ['Back to the Future', 'Some Short Film']);
+  assert.ok(!JSON.stringify((await erin('GET', '/api/friends')).body).includes('Secret thoughts'));
+
+  // Others can't see or touch your entries
+  assert.equal((await erin('GET', '/api/journal')).body.entries.length, 0);
+  assert.equal((await erin('PATCH', `/api/journal/${id}`, { rating: 1 })).status, 404);
+  assert.equal((await erin('DELETE', `/api/journal/${id}`)).status, 404);
+
+  // Edit keeps unspecified fields
+  r = await dan('PATCH', `/api/journal/${id}`, { rating: 3, hidden: true });
+  assert.equal(r.body.rating, 3);
+  assert.equal(r.body.note, 'Secret thoughts');
+  assert.equal(r.body.watchedOn, '2026-10-01');
+  assert.equal((await erin('GET', '/api/recent')).body.entries.length, 1);
+  assert.equal((await dan('DELETE', `/api/journal/${id}`)).status, 200);
+  assert.equal((await dan('GET', '/api/journal')).body.entries.length, 2);
+});
+
+test('journal: import a notes file (preview, then save; never in the feed)', async () => {
+  const text = [
+    'Movie Journal',
+    '2025',
+    ' – The Shawshank Redemption (1994) - 4.5 - Hope is a good thing',
+    ' – Back to the Future (1984) - 4 - off by a year in my notes',
+    ' – Nonexistent Film (2020) - 3 - hmm',
+    '2026',
+    ' – Indie Darling (2021) - 9/10 - lovely',
+  ].join('\n');
+  const { body: preview } = await erin('POST', '/api/journal/import/preview', { text });
+  assert.equal(preview.entries.length, 4);
+  assert.deepEqual(preview.skipped.map((s) => s.text), ['Movie Journal']);
+  assert.equal(preview.entries[0].match.title, 'The Shawshank Redemption');
+  assert.equal(preview.entries[1].match.year, '1985', 'off-by-one year still matches');
+  assert.equal(preview.entries[2].match, null);
+  assert.equal(preview.entries[3].rating, 4.5);
+  assert.equal(preview.entries[3].watchedYear, 2026);
+
+  const entries = preview.entries.map((e) => ({ ...e, movieId: e.match?.id || null }));
+  let r = await erin('POST', '/api/journal/import', { entries });
+  assert.deepEqual(r.body, { imported: 4, duplicates: 0 });
+  r = await erin('POST', '/api/journal/import', { entries });
+  assert.deepEqual(r.body, { imported: 0, duplicates: 4 }, 're-importing is safe');
+
+  const journal = (await erin('GET', '/api/journal')).body.entries;
+  // 2026 first; within 2025, later lines are more recent.
+  assert.deepEqual(journal.map((e) => e.movie.title), ['Indie Darling', 'Nonexistent Film', 'Back to the Future', 'The Shawshank Redemption']);
+  assert.equal(journal[2].note, 'off by a year in my notes');
+  assert.equal(journal[1].movie.imdbID, null);
+  assert.ok(journal.every((e) => e.watchedOn.length === 4));
+  assert.ok(!(await alice('GET', '/api/recent')).body.entries.some((e) => e.user.username === 'erin'), 'imported history stays out of the feed');
+
+  // "newest at top" reverses the order within a year
+  const ann = client();
+  const invite = (await alice('GET', '/api/friends')).body.inviteCode;
+  await ann('POST', '/api/signup', { username: 'ann', password: 'password1', inviteCode: invite });
+  await ann('POST', '/api/journal/import', { entries: entries.slice(0, 2), newestAt: 'top' });
+  assert.deepEqual((await ann('GET', '/api/journal')).body.entries.map((e) => e.movie.title), ['The Shawshank Redemption', 'Back to the Future']);
+});
+
+test('journal: removing a member removes their journal', async () => {
+  const people = (await alice('GET', '/api/friends')).body.people;
+  await alice('DELETE', `/api/users/${people.find((p) => p.username === 'dan').id}`);
+  assert.ok(!(await erin('GET', '/api/recent')).body.entries.some((e) => e.user.username === 'dan'));
+});
