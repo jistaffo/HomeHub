@@ -1205,6 +1205,16 @@ document.getElementById('userMenuBtn').addEventListener('click', () => {
       </div>
     </form>
 
+    <div class="sheet-section">
+      <strong>Appearance</strong>
+      <div class="segmented" role="radiogroup" aria-label="Appearance" style="margin-top:10px">
+        ${[['auto', '🌗 Auto'], ['light', '☀️ Day'], ['dark', '🌙 Night']]
+          .map(([v, label]) => `<button type="button" role="radio" data-theme-pick="${v}" aria-checked="${(window.top10Theme?.get() || 'auto') === v}">${label}</button>`)
+          .join('')}
+      </div>
+      <p class="muted" style="font-size:13px;margin:8px 0 0">Auto follows your device’s setting. Saved on this device.</p>
+    </div>
+
     <form class="sheet-section" id="pwForm">
       <strong>Change password</strong>
       <div class="field" style="margin-top:10px"><label for="pwCurrent">Current password</label><input id="pwCurrent" name="current" type="password" autocomplete="current-password" required></div>
@@ -1227,6 +1237,12 @@ document.getElementById('userMenuBtn').addEventListener('click', () => {
     location.hash = '#/';
     route();
   };
+  $sheet.querySelectorAll('[data-theme-pick]').forEach((b) =>
+    b.addEventListener('click', () => {
+      window.top10Theme?.set(b.dataset.themePick);
+      $sheet.querySelectorAll('[data-theme-pick]').forEach((x) => x.setAttribute('aria-checked', String(x === b)));
+    }),
+  );
   $sheet.querySelector('#nameForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     try {

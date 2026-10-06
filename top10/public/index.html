@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#9fd0ea" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#0f1626" media="(prefers-color-scheme: dark)">
+  <script src="/theme.js"></script>
   <title>Top 10</title>
   <link rel="icon" href="/icon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -13,43 +14,19 @@
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
-  <!-- Scenery. Small homages to well-loved films; "Spot the movie references" in the footer lists them. -->
+  <!-- Scenery: one painted landscape with small homages to well-loved films.
+       "Spot the movie references" in the footer lists them. -->
   <div class="scenery-sky" aria-hidden="true">
     <!-- Star Wars: twin suns -->
-    <svg class="art art-suns day-only" viewBox="0 0 120 80">
+    <svg class="art art-right day-only" viewBox="0 0 120 80">
       <circle class="glow" cx="44" cy="44" r="34"/>
       <circle cx="44" cy="44" r="22" fill="#f6b04a"/>
       <circle class="glow" cx="88" cy="30" r="22"/>
       <circle cx="88" cy="30" r="13" fill="#fad27a"/>
     </svg>
-    <!-- Up: a house carried by balloons -->
-    <svg class="art art-balloons day-only" viewBox="0 0 80 112">
-      <g stroke="#8a6a4a" stroke-width="0.7" opacity="0.7">
-        <line x1="40" y1="66" x2="22" y2="34"/><line x1="40" y1="66" x2="33" y2="22"/><line x1="40" y1="66" x2="46" y2="20"/>
-        <line x1="40" y1="66" x2="58" y2="32"/><line x1="40" y1="66" x2="40" y2="40"/><line x1="40" y1="66" x2="28" y2="46"/><line x1="40" y1="66" x2="53" y2="46"/>
-      </g>
-      <circle cx="22" cy="30" r="9" fill="#e76f51"/><circle cx="33" cy="17" r="10" fill="#e9c46a"/><circle cx="47" cy="15" r="10" fill="#6d9dc5"/>
-      <circle cx="59" cy="28" r="9" fill="#8ab17d"/><circle cx="40" cy="32" r="10" fill="#e5989b"/><circle cx="27" cy="43" r="8" fill="#f4a261"/>
-      <circle cx="53" cy="42" r="8" fill="#b5838d"/><circle cx="16" cy="18" r="7" fill="#2a9d8f"/><circle cx="64" cy="16" r="7" fill="#f4a261"/>
-      <path d="M24 82 L40 67 L56 82 Z" fill="#c9552a"/>
-      <rect x="27" y="81" width="26" height="19" fill="#f3e3c3" stroke="#8a6a4a" stroke-width="0.8"/>
-      <rect x="36" y="89" width="7" height="11" fill="#7a5233"/><rect x="29.5" y="85" width="5" height="5" fill="#9fd0ea"/><rect x="45.5" y="85" width="5" height="5" fill="#9fd0ea"/>
-    </svg>
-    <!-- Mary Poppins: floating in by umbrella -->
-    <svg class="art art-umbrella day-only" viewBox="0 0 40 64">
-      <g fill="#3d2e22">
-        <path d="M4 16 Q20 -2 36 16 Q32 13 28 16 Q24 13 20 16 Q16 13 12 16 Q8 13 4 16 Z"/>
-        <rect x="19.3" y="15" width="1.4" height="14"/>
-        <circle cx="16" cy="31" r="3.2"/>
-        <path d="M16 33 L11 52 L21 52 Z"/>
-        <path d="M18 34 L20 28 L21 29 L19.5 35 Z"/>
-        <rect x="13" y="51" width="1.4" height="7"/><rect x="17.6" y="51" width="1.4" height="7"/>
-        <path d="M11 30.5 L21 30.5 L19 28.6 L13 28.6 Z"/>
-      </g>
-    </svg>
     <!-- E.T.: a bicycle across the moon -->
-    <svg class="art art-moon night-only" viewBox="0 0 130 120">
-      <circle class="glow" cx="72" cy="54" r="56"/>
+    <svg class="art art-right night-only" viewBox="0 0 130 120">
+      <circle class="glow moon-glow" cx="72" cy="54" r="56"/>
       <circle cx="72" cy="54" r="44" fill="#f4ead0"/>
       <circle cx="58" cy="40" r="6" fill="#e6dbbd"/><circle cx="86" cy="66" r="9" fill="#e6dbbd"/><circle cx="90" cy="34" r="4" fill="#e6dbbd"/>
       <g fill="none" stroke="#141c2e" stroke-width="2.4" stroke-linecap="round">
@@ -62,14 +39,40 @@
         <path d="M64 50 L76 57 L75 59 L63 53 Z"/>
       </g>
     </svg>
+    <!-- Up: a house carried by balloons -->
+    <svg class="art art-left art-balloons day-only" viewBox="0 0 80 112">
+      <g stroke="#8a6a4a" stroke-width="0.7" opacity="0.7">
+        <line x1="40" y1="66" x2="22" y2="34"/><line x1="40" y1="66" x2="33" y2="22"/><line x1="40" y1="66" x2="46" y2="20"/>
+        <line x1="40" y1="66" x2="58" y2="32"/><line x1="40" y1="66" x2="40" y2="40"/><line x1="40" y1="66" x2="28" y2="46"/><line x1="40" y1="66" x2="53" y2="46"/>
+      </g>
+      <circle cx="22" cy="30" r="9" fill="#e76f51"/><circle cx="33" cy="17" r="10" fill="#e9c46a"/><circle cx="47" cy="15" r="10" fill="#6d9dc5"/>
+      <circle cx="59" cy="28" r="9" fill="#8ab17d"/><circle cx="40" cy="32" r="10" fill="#e5989b"/><circle cx="27" cy="43" r="8" fill="#f4a261"/>
+      <circle cx="53" cy="42" r="8" fill="#b5838d"/><circle cx="16" cy="18" r="7" fill="#2a9d8f"/><circle cx="64" cy="16" r="7" fill="#f4a261"/>
+      <path d="M24 82 L40 67 L56 82 Z" fill="#c9552a"/>
+      <rect x="27" y="81" width="26" height="19" fill="#f3e3c3" stroke="#8a6a4a" stroke-width="0.8"/>
+      <rect x="36" y="89" width="7" height="11" fill="#7a5233"/><rect x="29.5" y="85" width="5" height="5" fill="#9fd0ea"/><rect x="45.5" y="85" width="5" height="5" fill="#9fd0ea"/>
+    </svg>
     <!-- Close Encounters: a saucer and its beam -->
-    <svg class="art art-ufo night-only" viewBox="0 0 100 130">
+    <svg class="art art-left art-ufo night-only" viewBox="0 0 100 130">
       <defs><linearGradient id="beam" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe3a3" stop-opacity="0.55"/><stop offset="1" stop-color="#ffe3a3" stop-opacity="0"/></linearGradient></defs>
       <path d="M38 34 L62 34 L90 130 L10 130 Z" fill="url(#beam)"/>
       <ellipse cx="50" cy="24" rx="14" ry="10" fill="#9fc9de" opacity="0.8"/>
       <ellipse cx="50" cy="31" rx="36" ry="8" fill="#56658a"/>
       <ellipse cx="50" cy="29" rx="36" ry="5" fill="#6d7da3"/>
       <g class="blink" fill="#ffd27a"><circle cx="24" cy="31" r="2"/><circle cx="37" cy="33.5" r="2"/><circle cx="50" cy="34.5" r="2"/><circle cx="63" cy="33.5" r="2"/><circle cx="76" cy="31" r="2"/></g>
+    </svg>
+    <!-- Kiki's Delivery Service: a girl on a broom, with her cat -->
+    <svg class="art art-kiki" viewBox="0 0 90 50">
+      <g class="ink-fill">
+        <path d="M6 34 L72 22 L72.6 24 L6.6 36 Z"/>
+        <path d="M72 22 L88 15 L86 22 L89 26 L73 25 Z"/>
+        <path d="M30 30 L40 13 L48 14 L46 28 Z"/>
+        <circle cx="44" cy="10" r="4.4"/>
+        <path d="M41 6 L36 2 L37.5 8 Z M43 5.5 L47 0.5 L47.5 6.5 Z" class="bow"/>
+        <path d="M44 27 L50 34 L48.5 35 L42 29 Z"/>
+        <path d="M58 21 C58 17 61 16 63 17 L64 14.5 L65 17.5 L66 15 L66.4 18.6 C67.5 20 66.5 22.5 64 23 Z"/>
+        <path d="M58 22 C54 22 52 24 51 27" fill="none" stroke-width="1.2" class="ink"/>
+      </g>
     </svg>
   </div>
   <header class="topbar" id="topbar" hidden>
@@ -85,44 +88,56 @@
   <main id="app" class="app" aria-live="polite"></main>
 
   <footer class="site-foot">
-    <svg class="scenery-hills" viewBox="0 0 1440 260" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
-      <!-- far ridge -->
-      <path class="hill-back" d="M0 150 C200 70 420 80 560 118 S860 190 1040 110 S1320 50 1440 96 V260 H0 Z"/>
-      <!-- There Will Be Blood: oil derrick -->
-      <g class="ink" stroke-width="2" fill="none" stroke-linecap="round">
-        <path d="M1276 80 L1290 22 L1304 80 M1280 64 L1300 64 M1283 50 L1297 50 M1286 36 L1294 36 M1280 64 L1297 50 M1300 64 L1283 50 M1283 50 L1294 36 M1297 50 L1286 36"/>
-        <path d="M1287 22 L1293 22"/>
+    <svg class="scenery-hills" viewBox="0 0 1440 300" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+      <!-- Distant range, fading into the haze -->
+      <path class="mtn-far" d="M0 170 C80 150 150 132 230 140 C320 148 380 122 470 118 C560 114 620 138 700 140 C790 142 850 116 940 112 C1030 108 1090 134 1170 132 C1250 130 1310 108 1380 112 C1410 114 1430 120 1440 124 L1440 200 L0 200 Z"/>
+      <!-- Far mountains (the Misty Mountains, where the Fellowship is headed) -->
+      <path class="mtn" d="M0 196 L0 104 C14 98 24 84 36 72 C46 62 52 58 60 66 C70 76 78 70 90 56 C100 44 110 40 120 52 C132 66 142 78 158 74 C172 70 182 60 196 66 C214 74 228 96 252 104 C290 116 330 130 380 140 C520 160 700 168 860 172 C1000 176 1160 168 1300 158 C1360 154 1410 152 1440 154 L1440 196 Z"/>
+      <path class="snow" d="M30 77 C40 66 48 60 60 66 C54 70 46 70 42 76 C38 72 34 76 30 77 Z M84 62 C96 48 108 42 120 52 C112 56 104 54 100 60 C96 58 90 60 84 62 Z M146 76 C158 72 168 66 182 64 C176 70 168 70 162 74 C158 72 152 74 146 76 Z"/>
+      <!-- The Wizard of Oz: the Emerald City on the horizon -->
+      <g class="emerald" transform="translate(930 196)">
+        <path d="M-34 0 L-34 -22 L-30 -30 L-26 -22 L-26 0 Z M-22 0 L-22 -34 L-17 -46 L-12 -34 L-12 0 Z M-8 0 L-8 -46 L0 -64 L8 -46 L8 0 Z M12 0 L12 -30 L17 -40 L22 -30 L22 0 Z M26 0 L26 -20 L30 -27 L34 -20 L34 0 Z"/>
       </g>
-      <!-- 2001: the monolith -->
-      <rect class="monolith" x="604" y="80" width="11" height="48"/>
-      <!-- Blade Runner: origami unicorn -->
-      <g class="origami" transform="translate(664 120) scale(1.15)">
-        <path d="M0 14 L10 8 L20 10 L18 16 L4 17 Z"/><path d="M17 10 L22 2 L27 5 L21 12 Z"/><path d="M22 2 L29 -6 L25 4 Z"/>
-        <path d="M5 16.5 L4 23 M9 16.5 L10 23 M15 16 L14 22 M18 15.5 L20 21"/>
+      <!-- Jurassic Park: a pair of long necks over the far hills -->
+      <g transform="translate(-130 0)">
+      <path class="dino" d="M1196 186 C1206 166 1236 156 1260 158 C1264 128 1270 98 1284 74 C1290 64 1298 58 1308 60 C1316 61 1321 66 1315 70 L1305 71 C1299 73 1295 81 1293 89 C1287 112 1285 138 1285 160 C1300 164 1312 174 1314 188 Z"/>
+      <path class="dino" d="M1328 190 C1334 178 1352 172 1366 174 C1369 156 1373 140 1381 128 C1385 122 1390 119 1396 120 C1401 121 1403 124 1399 126 L1393 127 C1389 129 1387 134 1386 139 C1382 152 1381 166 1381 176 C1390 179 1397 185 1398 192 Z"/>
       </g>
-      <!-- near hill -->
-      <path class="hill-front" d="M0 192 C220 232 400 140 640 176 S1000 232 1200 170 S1380 148 1440 162 V260 H0 Z"/>
-      <!-- The Wizard of Oz: yellow brick road -->
-      <path class="road" d="M1118 260 C1108 232 1062 214 1050 196 C1040 180 1012 166 1000 152 L1009 151 C1024 164 1060 176 1076 194 C1096 216 1170 234 1222 260 Z"/>
-      <path class="road-bricks" d="M1170 258 C1140 236 1090 218 1064 196 C1048 182 1022 166 1005 152"/>
-      <!-- The Lord of the Rings: a round door in the hill -->
-      <g transform="translate(250 222)">
-        <circle r="23" class="door-frame"/>
-        <circle r="19" class="door"/>
-        <path d="M-19 0 L19 0 M0 -19 L0 19 M-13.4 -13.4 L13.4 13.4 M13.4 -13.4 L-13.4 13.4" class="door-lines"/>
-        <circle r="3" class="knob"/>
-        <circle cx="38" cy="-6" r="7" class="door-window"/>
+      <!-- Middle ridge -->
+      <path class="hill-back" d="M0 206 C120 158 300 146 520 152 C700 158 820 190 960 188 C1100 186 1250 156 1440 166 L1440 300 L0 300 Z"/>
+      <!-- The Lord of the Rings: the Fellowship walking the ridge, wizard in front -->
+      <g class="fellowship ink-fill">
+        <g transform="translate(300 149.5)"><line x1="-6" y1="-29" x2="-6" y2="0" class="staff"/><circle cx="-6" cy="-29.5" r="1.6" class="staff-tip"/><path d="M-2.5 -27 L3.5 -20.5 L-4.5 -20.5 Z"/><circle cy="-18" r="2.4"/><path d="M-4 -16.5 L3.5 -16.5 L5.5 0 L-6 0 Z"/></g>
+        <g transform="translate(323 148.6)"><circle cy="-17.5" r="2.4"/><path d="M-3.6 -15.5 L3.6 -15.5 L4.6 0 L-4.6 0 Z"/><line x1="3" y1="-13" x2="7" y2="-3" class="ink" stroke-width="1"/></g>
+        <g transform="translate(344 148.1)"><circle cy="-9.5" r="2"/><path d="M-2.6 -7.8 L2.6 -7.8 L3.3 0 L-3.3 0 Z"/></g>
+        <g transform="translate(358 147.8)"><circle cy="-9.5" r="2.1"/><path d="M-2.8 -7.8 L2.8 -7.8 L3.5 0 L-3.5 0 Z"/><path d="M1.5 -7.5 L5 -7 L4.6 -2.5 L1.5 -3 Z"/></g>
+        <g transform="translate(372 147.4)"><circle cy="-9.2" r="2"/><path d="M-2.6 -7.6 L2.6 -7.6 L3.3 0 L-3.3 0 Z"/></g>
+        <g transform="translate(386 147.1)"><circle cy="-9.2" r="2"/><path d="M-2.6 -7.6 L2.6 -7.6 L3.3 0 L-3.3 0 Z"/></g>
+        <g transform="translate(406 146.9)"><circle cy="-18" r="2.2"/><path d="M-3 -16 L3 -16 L4 0 L-4 0 Z"/><path d="M4 -18 Q9 -10 4 -2" fill="none" class="ink" stroke-width="1"/></g>
+        <g transform="translate(427 146.8)"><circle cy="-11" r="2.4"/><path d="M-4.6 -9 L4.6 -9 L5.2 0 L-5.2 0 Z"/><line x1="5.5" y1="-15" x2="4.5" y2="0" class="ink" stroke-width="1.2"/><path d="M5.5 -15 L9.5 -16 L9 -11 L5.3 -12 Z"/></g>
+        <g transform="translate(448 146.9)"><circle cy="-17.5" r="2.4"/><path d="M-3.8 -15.5 L3.8 -15.5 L4.8 0 L-4.8 0 Z"/><circle cx="4.5" cy="-9" r="3.4"/></g>
       </g>
-      <!-- My Neighbor Totoro: a country bus stop -->
-      <g transform="translate(1372 112)">
-        <rect x="-1.2" y="0" width="2.4" height="46" class="ink-fill"/>
-        <circle cx="0" cy="-2" r="10" class="sign"/>
-        <rect x="-7" y="-4" width="14" height="4" class="sign-band"/>
+      <!-- Near hill -->
+      <path class="hill-front" d="M0 232 C200 206 420 228 620 224 C780 220 880 204 1040 206 C1200 208 1320 226 1440 212 L1440 300 L0 300 Z"/>
+      <!-- The Wizard of Oz: yellow brick road to the city -->
+      <path class="road" d="M1092 300 C1070 266 1004 248 978 226 C958 210 938 198 928 190 L934 190 C948 198 972 208 1002 222 C1042 242 1150 270 1232 300 Z"/>
+      <path class="road-bricks" d="M1162 300 C1110 270 1040 246 1000 224 C972 210 948 198 931 190"/>
+      <!-- My Neighbor Totoro: a country bus stop by the road -->
+      <g transform="translate(1262 216)">
+        <rect x="-1.2" y="-6" width="2.4" height="44" class="ink-fill"/>
+        <circle cy="-12" r="9" class="sign"/>
+        <circle cy="-12" r="5.2" class="sign-inner"/>
+        <rect x="-5" y="4" width="10" height="13" rx="1.5" class="sign-board"/>
+        <path d="M-3 8 H3 M-3 11 H3 M-3 14 H1" class="sign-lines"/>
       </g>
+      <!-- Jaws: a fin in the pond -->
+      <ellipse class="water" cx="210" cy="266" rx="96" ry="15"/>
+      <path class="ripple" d="M150 266 Q160 263 170 266 M246 270 Q256 267 266 270 M196 272 Q212 275 230 272"/>
+      <path class="fin" d="M198 266 C202 256 208 247 218 242 C216 250 217 259 222 266 Z"/>
       <!-- fireflies (night) -->
       <g class="fireflies">
-        <circle cx="180" cy="196" r="2.2"/><circle cx="330" cy="186" r="1.8"/><circle cx="470" cy="206" r="2"/>
-        <circle cx="900" cy="214" r="2"/><circle cx="1230" cy="190" r="1.8"/><circle cx="1330" cy="204" r="2.2"/>
+        <circle cx="120" cy="236" r="2.2"/><circle cx="330" cy="246" r="1.8"/><circle cx="560" cy="200" r="2"/>
+        <circle cx="1080" cy="196" r="2"/><circle cx="1330" cy="232" r="1.8"/><circle cx="1390" cy="250" r="2.2"/>
       </g>
     </svg>
     <div class="foot-text">
@@ -134,14 +149,13 @@
       <ul>
         <li>Twin suns: <em>Star Wars</em> (1977)</li>
         <li>A house lifted by balloons: <em>Up</em> (2009)</li>
-        <li>Someone floating by umbrella: <em>Mary Poppins</em> (1964)</li>
+        <li>A girl on a broom with her cat: <em>Kiki’s Delivery Service</em> (1989)</li>
         <li>A bicycle across the moon (at night): <em>E.T. the Extra-Terrestrial</em> (1982)</li>
         <li>A saucer and its beam (at night): <em>Close Encounters of the Third Kind</em> (1977)</li>
-        <li>The black monolith: <em>2001: A Space Odyssey</em> (1968)</li>
-        <li>A paper unicorn: <em>Blade Runner</em> (1982)</li>
-        <li>The yellow brick road: <em>The Wizard of Oz</em> (1939)</li>
-        <li>A round door in the hill: <em>The Lord of the Rings</em> (2001)</li>
-        <li>An oil derrick on the ridge: <em>There Will Be Blood</em> (2007)</li>
+        <li>Nine walkers on the ridge, wizard in front: <em>The Lord of the Rings</em> (2001)</li>
+        <li>A yellow brick road to an emerald city: <em>The Wizard of Oz</em> (1939)</li>
+        <li>A long neck over the hills: <em>Jurassic Park</em> (1993)</li>
+        <li>A fin in the pond: <em>Jaws</em> (1975)</li>
         <li>A country bus stop: <em>My Neighbor Totoro</em> (1988)</li>
       </ul>
     </details>

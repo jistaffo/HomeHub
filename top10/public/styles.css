@@ -1,5 +1,5 @@
 /* Theme: a hand-painted countryside. Summer sky and meadow by day,
-   lantern-lit night by dark mode. Colors are tokens; the scenery (clouds,
+   lantern-lit night in dark mode (html[data-theme="dark"], set by theme.js). Colors are tokens; the scenery (clouds,
    hills) is drawn with CSS masks so it recolors with the theme. */
 :root {
   --bg: #fbf3e2;
@@ -28,6 +28,11 @@
   --hill-text: #2c4620;
   --scene-ink: #4b3a2b;
   --road: #e8c25a;
+  --mtn: #b9cfc9;
+  --mtn-deep: #a3bdb5;
+  --snow: #f7f8f4;
+  --emerald: #5fae7c;
+  --water: #8cc3dc;
   --shadow: 0 1px 0 rgb(120 80 40 / 0.05), 0 8px 20px -8px rgb(120 80 40 / 0.28);
   --shadow-lg: 0 24px 60px -12px rgb(80 50 20 / 0.4);
   --radius: 18px;
@@ -36,34 +41,38 @@
   color-scheme: light;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #1c2333;
-    --surface: #262f45;
-    --surface-2: #313c56;
-    --text: #f6ead2;
-    --muted: #b9aa8e;
-    --line: #3d4864;
-    --accent: #f2a25c;      /* lantern */
-    --accent-ink: #2a1a0e;
-    --sun: #f6cf6a;
-    --leaf: #a3c97c;
-    --sky: #8ec5e0;
-    --danger: #ff8a70;
-    --sky-1: #0f1626;
-    --sky-2: #182035;
-    --cloud: #34405c;
-    --cloud-opacity: 0.55;
-    --hill-back: #2d4a3a;
-    --hill-front: #213a2c;
-    --hill-text: #c8d6ae;
-    --scene-ink: #0e1520;
-    --road: #8a7a45;
-    --shadow: 0 1px 0 rgb(0 0 0 / 0.25), 0 10px 24px -10px rgb(0 0 0 / 0.6);
-    --shadow-lg: 0 24px 60px -12px rgb(0 0 0 / 0.7);
-    color-scheme: dark;
-  }
+:root[data-theme="dark"] {
+  --bg: #1c2333;
+  --surface: #262f45;
+  --surface-2: #313c56;
+  --text: #f6ead2;
+  --muted: #b9aa8e;
+  --line: #3d4864;
+  --accent: #f2a25c;      /* lantern */
+  --accent-ink: #2a1a0e;
+  --sun: #f6cf6a;
+  --leaf: #a3c97c;
+  --sky: #8ec5e0;
+  --danger: #ff8a70;
+  --sky-1: #0f1626;
+  --sky-2: #182035;
+  --cloud: #34405c;
+  --cloud-opacity: 0.55;
+  --hill-back: #2d4a3a;
+  --hill-front: #213a2c;
+  --hill-text: #c8d6ae;
+  --scene-ink: #0e1520;
+  --road: #8a7a45;
+  --mtn: #2a3550;
+  --mtn-deep: #232d45;
+  --snow: #8b97b3;
+  --emerald: #3fbf7a;
+  --water: #2c4a68;
+  --shadow: 0 1px 0 rgb(0 0 0 / 0.25), 0 10px 24px -10px rgb(0 0 0 / 0.6);
+  --shadow-lg: 0 24px 60px -12px rgb(0 0 0 / 0.7);
+  color-scheme: dark;
 }
+
 
 * { box-sizing: border-box; }
 html, body { margin: 0; }
@@ -100,21 +109,20 @@ body::before {
 @keyframes drift { to { -webkit-mask-position: 600px 0; mask-position: 600px 0; } }
 
 /* A scatter of stars, only at night. */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) body::after {
-    content: ""; position: absolute; z-index: -1; inset: 0 0 auto 0; height: 360px; pointer-events: none;
-    background:
-      radial-gradient(1.5px 1.5px at 8% 18%, #fff8 50%, transparent 51%),
-      radial-gradient(1px 1px at 22% 40%, #fff7 50%, transparent 51%),
-      radial-gradient(2px 2px at 37% 12%, #ffe9b0aa 50%, transparent 51%),
-      radial-gradient(1px 1px at 51% 30%, #fff6 50%, transparent 51%),
-      radial-gradient(1.5px 1.5px at 66% 9%, #fff8 50%, transparent 51%),
-      radial-gradient(1px 1px at 79% 34%, #fff7 50%, transparent 51%),
-      radial-gradient(2px 2px at 91% 16%, #ffe9b0aa 50%, transparent 51%),
-      radial-gradient(1px 1px at 14% 62%, #fff5 50%, transparent 51%),
-      radial-gradient(1px 1px at 72% 58%, #fff5 50%, transparent 51%);
-  }
+:root[data-theme="dark"] body::after {
+  content: ""; position: absolute; z-index: -1; inset: 0 0 auto 0; height: 360px; pointer-events: none;
+  background:
+    radial-gradient(1.5px 1.5px at 8% 18%, #fff8 50%, transparent 51%),
+    radial-gradient(1px 1px at 22% 40%, #fff7 50%, transparent 51%),
+    radial-gradient(2px 2px at 37% 12%, #ffe9b0aa 50%, transparent 51%),
+    radial-gradient(1px 1px at 51% 30%, #fff6 50%, transparent 51%),
+    radial-gradient(1.5px 1.5px at 66% 9%, #fff8 50%, transparent 51%),
+    radial-gradient(1px 1px at 79% 34%, #fff7 50%, transparent 51%),
+    radial-gradient(2px 2px at 91% 16%, #ffe9b0aa 50%, transparent 51%),
+    radial-gradient(1px 1px at 14% 62%, #fff5 50%, transparent 51%),
+    radial-gradient(1px 1px at 72% 58%, #fff5 50%, transparent 51%);
 }
+
 
 @media (prefers-reduced-motion: reduce) {
   body::before { animation: none; }
@@ -348,84 +356,95 @@ body::before {
 .badge { display: inline-block; vertical-align: middle; margin-left: 4px; padding: 1px 7px; border-radius: 999px; background: var(--surface-2); color: var(--muted); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
 .sheet-section { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line); }
 .list-foot { display: flex; justify-content: center; margin-top: 18px; }
-/* Rolling hills (inline SVG); the footer text sits on the near one. */
+/* ---------- scenery ---------- */
+
+/* The footer is a painted panorama (inline SVG); its text sits on the near hill. */
 .site-foot {
   position: relative; isolation: isolate; width: 100%; margin-top: 40px;
-  min-height: clamp(210px, 21vw, 300px); padding: 0 16px 22px;
+  min-height: clamp(250px, 23vw, 340px); padding: 0 16px 22px;
   display: flex; flex-direction: column; justify-content: flex-end;
   text-align: center; font-size: 12px; line-height: 1.6; color: var(--hill-text);
+  background: linear-gradient(to bottom, transparent 0%, color-mix(in srgb, var(--sky-2) 70%, transparent) 55%, transparent 80%);
 }
 .site-foot a { font-weight: 700; }
 .foot-text { position: relative; max-width: 640px; margin: 0 auto; }
 .scenery-hills { position: absolute; z-index: -1; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.mtn-far { fill: color-mix(in srgb, var(--mtn) 55%, var(--sky-2)); }
+.mtn { fill: var(--mtn); }
+.snow { fill: var(--snow); }
+.dino { fill: var(--mtn-deep); }
+.emerald { fill: var(--emerald); }
 .hill-back { fill: var(--hill-back); }
 .hill-front { fill: var(--hill-front); }
 .ink { stroke: var(--scene-ink); }
 .ink-fill { fill: var(--scene-ink); }
-.monolith { fill: #15130f; }
-.origami path { fill: #f7f1e3; stroke: color-mix(in srgb, var(--scene-ink) 70%, transparent); stroke-width: 0.8; stroke-linejoin: round; }
+.staff { stroke: var(--scene-ink); stroke-width: 1.2; }
+.staff-tip { fill: var(--scene-ink); }
 .road { fill: var(--road); }
 .road-bricks { fill: none; stroke: color-mix(in srgb, var(--road) 60%, #8a5a1a); stroke-width: 1.2; stroke-dasharray: 5 6; opacity: 0.6; }
-.door-frame { fill: color-mix(in srgb, var(--hill-front) 60%, #3d2e22); }
-.door { fill: #3f7a36; }
-.door-lines { stroke: rgb(0 0 0 / 0.18); stroke-width: 1; }
-.knob { fill: var(--sun); }
-.door-window { fill: color-mix(in srgb, var(--hill-front) 60%, #3d2e22); }
-.sign { fill: #f7f1e3; stroke: var(--scene-ink); stroke-width: 1.5; }
-.sign-band { fill: var(--accent); }
+.sign { fill: #e9b949; stroke: var(--scene-ink); stroke-width: 1.5; }
+.sign-inner { fill: none; stroke: color-mix(in srgb, var(--scene-ink) 70%, transparent); stroke-width: 1; }
+.sign-board { fill: #f7f1e3; stroke: var(--scene-ink); stroke-width: 1; }
+.sign-lines { stroke: color-mix(in srgb, var(--scene-ink) 60%, transparent); stroke-width: 0.9; }
+.water { fill: var(--water); }
+.ripple { fill: none; stroke: color-mix(in srgb, var(--water) 55%, #fff); stroke-width: 1.4; stroke-linecap: round; }
+.fin { fill: #56656f; }
 .fireflies { display: none; }
 
 .refs { margin-top: 6px; }
 .refs summary { cursor: pointer; font-weight: 700; list-style: none; display: inline-block; padding: 2px 10px; border-radius: 999px; background: color-mix(in srgb, var(--hill-front) 70%, #000 8%); }
 .refs summary::-webkit-details-marker { display: none; }
-.refs ul { list-style: none; margin: 8px auto 0; padding: 10px 14px; max-width: 520px; text-align: left; border-radius: 14px; background: color-mix(in srgb, var(--hill-front) 80%, #000 12%); columns: 2 220px; column-gap: 18px; }
+.refs ul { list-style: none; margin: 8px auto 0; padding: 10px 14px; max-width: 560px; text-align: left; border-radius: 14px; background: color-mix(in srgb, var(--hill-front) 80%, #000 12%); columns: 2 230px; column-gap: 18px; }
 .refs li { break-inside: avoid; margin: 2px 0; }
 
-/* Sky homages */
-/* Each piece is sized to, and centered in, the empty side margin beside the
-   880px content column (--gutter), so it never sits behind buttons. */
+/* Sky pieces live in the empty side margins beside the 880px content column:
+   suns/moon top right, balloons/saucer top left, Kiki gliding below them. */
 .scenery-sky {
   --gutter: max(0px, (100vw - 880px) / 2);
-  --side: clamp(64px, calc(var(--gutter) - 28px), 130px);
-  position: absolute; z-index: -1; inset: 0 0 auto 0; height: 460px; overflow: hidden; pointer-events: none;
+  --side: clamp(64px, calc(var(--gutter) - 40px), 124px);
+  position: absolute; z-index: -1; inset: 0 0 auto 0; height: 520px; overflow: hidden; pointer-events: none;
 }
 .art { position: absolute; overflow: visible; }
 .art .glow { fill: var(--sun); opacity: 0.18; }
-.art-suns, .art-moon { width: var(--side); right: max(8px, calc((var(--gutter) - var(--side)) / 2)); top: 70px; }
-.art-balloons, .art-ufo { width: min(var(--side), 86px); left: max(8px, calc((var(--gutter) - min(var(--side), 86px)) / 2)); top: 96px; }
+.art .moon-glow { fill: #f4ead0; opacity: 0.12; }
+.art-right { width: var(--side); right: calc((var(--gutter) - var(--side)) / 2); top: 74px; }
+.art-left { width: min(var(--side), 84px); left: calc((var(--gutter) - min(var(--side), 84px)) / 2); top: 84px; }
 .art-balloons { animation: bob 7s ease-in-out infinite; }
-.art-umbrella { width: 30px; left: calc(var(--gutter) / 2 - 15px); top: 290px; opacity: 0.55; animation: float-down 16s ease-in-out infinite; }
-.art-moon .glow { fill: #f4ead0; opacity: 0.12; }
 .art-ufo { opacity: 0.9; animation: hover 9s ease-in-out infinite; }
 .art-ufo .blink circle { animation: blink 1.6s steps(2) infinite; }
 .art-ufo .blink circle:nth-child(2n) { animation-delay: 0.8s; }
+.art-kiki { width: min(var(--side), 96px); right: calc((var(--gutter) - min(var(--side), 96px)) / 2); top: 300px; opacity: 0.75; animation: glide 12s ease-in-out infinite; }
+.art-kiki .bow { fill: var(--accent); }
 .night-only { display: none; }
 @keyframes bob { 50% { transform: translateY(-10px) rotate(2deg); } }
-@keyframes float-down { 0%, 100% { transform: translate(0, 0) rotate(-4deg); } 50% { transform: translate(-18px, 14px) rotate(4deg); } }
-@keyframes hover { 50% { transform: translateX(14px); } }
+@keyframes glide { 0%, 100% { transform: translate(0, 0) rotate(-3deg); } 50% { transform: translate(-14px, -12px) rotate(2deg); } }
+@keyframes hover { 50% { transform: translateX(12px); } }
 @keyframes blink { 50% { opacity: 0.25; } }
 @keyframes firefly { 0%, 100% { opacity: 0.15; } 50% { opacity: 1; } }
 
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .day-only { display: none; }
-  :root:not([data-theme="light"]) .night-only { display: block; }
-  :root:not([data-theme="light"]) .fireflies { display: inline; }
-  :root:not([data-theme="light"]) .fireflies circle { fill: #f6e27a; filter: drop-shadow(0 0 4px #f6e27a); animation: firefly 3s ease-in-out infinite; }
-  :root:not([data-theme="light"]) .fireflies circle:nth-child(2n) { animation-delay: 1.3s; }
-  :root:not([data-theme="light"]) .fireflies circle:nth-child(3n) { animation-delay: 2.1s; }
-  :root:not([data-theme="light"]) .door-window { fill: #ffcf6e; filter: drop-shadow(0 0 6px #ffb84d); }
-  :root:not([data-theme="light"]) .monolith { fill: #07090e; }
-  :root:not([data-theme="light"]) .origami path { fill: #cfd6e4; }
-}
+:root[data-theme="dark"] .day-only { display: none; }
+:root[data-theme="dark"] .night-only { display: block; }
+:root[data-theme="dark"] .fireflies { display: inline; }
+:root[data-theme="dark"] .fireflies circle { fill: #f6e27a; filter: drop-shadow(0 0 4px #f6e27a); animation: firefly 3s ease-in-out infinite; }
+:root[data-theme="dark"] .fireflies circle:nth-child(2n) { animation-delay: 1.3s; }
+:root[data-theme="dark"] .fireflies circle:nth-child(3n) { animation-delay: 2.1s; }
+:root[data-theme="dark"] .emerald { filter: drop-shadow(0 0 8px #5fe09a); }
+:root[data-theme="dark"] .staff-tip { fill: #fff3c4; filter: drop-shadow(0 0 4px #ffe9a0); }
+:root[data-theme="dark"] .fin { fill: #8796a3; }
+:root[data-theme="dark"] .dino { fill: #34405f; }
+:root[data-theme="dark"] .art-kiki { opacity: 0.6; }
 
-/* Phones see the middle of the hill scene; give it room above the text. */
+/* Phones: show a smaller slice of the panorama (Fellowship through the
+   Emerald City) as a strip, with the text on the near hill below it. */
 @media (max-width: 700px) {
-  .site-foot { min-height: 330px; }
+  .site-foot { min-height: 0; padding: 0 0 22px; overflow: hidden; background: linear-gradient(to bottom, transparent 150px, var(--hill-front) 150px); }
+  .scenery-hills { position: relative; inset: auto; display: block; width: 760px; height: 158px; margin-left: calc(50% - 330px); }
+  .foot-text { padding: 0 16px; }
 }
 /* Without real side margins, keep just the sun/moon, small, in the corner. */
 @media (max-width: 1040px) {
-  .art-balloons, .art-umbrella, .art-ufo { display: none !important; }
-  .art-suns, .art-moon { width: 64px; right: 10px; top: 62px; opacity: 0.8; }
+  .art-left, .art-kiki { display: none !important; }
+  .art-right { width: 64px; right: 10px; top: 62px; opacity: 0.8; }
 }
 @media (prefers-reduced-motion: reduce) {
   .art, .art *, .fireflies circle { animation: none !important; }
@@ -496,6 +515,10 @@ body::before {
 .shelf-title { margin-top: 8px; font-family: var(--font-display); font-weight: 700; font-size: 13.5px; line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .shelf-meta { font-size: 12px; margin-top: 2px; }
 .watched-line { margin: 10px 0 0; font-size: 13.5px; }
+
+.segmented { display: flex; gap: 4px; padding: 4px; border-radius: 999px; background: var(--surface-2); }
+.segmented button { flex: 1; min-height: 36px; border: 0; border-radius: 999px; background: transparent; cursor: pointer; font-family: var(--font-display); font-weight: 700; font-size: 14px; color: var(--muted); }
+.segmented button[aria-checked="true"] { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
 
 /* ---------- sheet + toast ---------- */
 
