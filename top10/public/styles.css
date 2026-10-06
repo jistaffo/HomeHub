@@ -26,6 +26,8 @@
   --hill-back: #a9cb88;
   --hill-front: #7aab57;
   --hill-text: #2c4620;
+  --scene-ink: #4b3a2b;
+  --road: #e8c25a;
   --shadow: 0 1px 0 rgb(120 80 40 / 0.05), 0 8px 20px -8px rgb(120 80 40 / 0.28);
   --shadow-lg: 0 24px 60px -12px rgb(80 50 20 / 0.4);
   --radius: 18px;
@@ -55,6 +57,8 @@
     --hill-back: #2d4a3a;
     --hill-front: #213a2c;
     --hill-text: #c8d6ae;
+    --scene-ink: #0e1520;
+    --road: #8a7a45;
     --shadow: 0 1px 0 rgb(0 0 0 / 0.25), 0 10px 24px -10px rgb(0 0 0 / 0.6);
     --shadow-lg: 0 24px 60px -12px rgb(0 0 0 / 0.7);
     color-scheme: dark;
@@ -344,25 +348,87 @@ body::before {
 .badge { display: inline-block; vertical-align: middle; margin-left: 4px; padding: 1px 7px; border-radius: 999px; background: var(--surface-2); color: var(--muted); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
 .sheet-section { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line); }
 .list-foot { display: flex; justify-content: center; margin-top: 18px; }
-/* Rolling hills; the footer text sits on the front one. */
+/* Rolling hills (inline SVG); the footer text sits on the near one. */
 .site-foot {
   position: relative; isolation: isolate; width: 100%; margin-top: 40px;
-  padding: 120px 16px 28px; text-align: center; font-size: 12px; line-height: 1.6; color: var(--hill-text);
+  min-height: clamp(210px, 21vw, 300px); padding: 0 16px 22px;
+  display: flex; flex-direction: column; justify-content: flex-end;
+  text-align: center; font-size: 12px; line-height: 1.6; color: var(--hill-text);
 }
 .site-foot a { font-weight: 700; }
-.site-foot::before, .site-foot::after {
-  content: ""; position: absolute; z-index: -1; left: 0; right: 0; bottom: 0; pointer-events: none;
-  -webkit-mask-size: 100% 100%; mask-size: 100% 100%;
+.foot-text { position: relative; max-width: 640px; margin: 0 auto; }
+.scenery-hills { position: absolute; z-index: -1; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.hill-back { fill: var(--hill-back); }
+.hill-front { fill: var(--hill-front); }
+.ink { stroke: var(--scene-ink); }
+.ink-fill { fill: var(--scene-ink); }
+.monolith { fill: #15130f; }
+.origami path { fill: #f7f1e3; stroke: color-mix(in srgb, var(--scene-ink) 70%, transparent); stroke-width: 0.8; stroke-linejoin: round; }
+.road { fill: var(--road); }
+.road-bricks { fill: none; stroke: color-mix(in srgb, var(--road) 60%, #8a5a1a); stroke-width: 1.2; stroke-dasharray: 5 6; opacity: 0.6; }
+.door-frame { fill: color-mix(in srgb, var(--hill-front) 60%, #3d2e22); }
+.door { fill: #3f7a36; }
+.door-lines { stroke: rgb(0 0 0 / 0.18); stroke-width: 1; }
+.knob { fill: var(--sun); }
+.door-window { fill: color-mix(in srgb, var(--hill-front) 60%, #3d2e22); }
+.sign { fill: #f7f1e3; stroke: var(--scene-ink); stroke-width: 1.5; }
+.sign-band { fill: var(--accent); }
+.fireflies { display: none; }
+
+.refs { margin-top: 6px; }
+.refs summary { cursor: pointer; font-weight: 700; list-style: none; display: inline-block; padding: 2px 10px; border-radius: 999px; background: color-mix(in srgb, var(--hill-front) 70%, #000 8%); }
+.refs summary::-webkit-details-marker { display: none; }
+.refs ul { list-style: none; margin: 8px auto 0; padding: 10px 14px; max-width: 520px; text-align: left; border-radius: 14px; background: color-mix(in srgb, var(--hill-front) 80%, #000 12%); columns: 2 220px; column-gap: 18px; }
+.refs li { break-inside: avoid; margin: 2px 0; }
+
+/* Sky homages */
+/* Each piece is sized to, and centered in, the empty side margin beside the
+   880px content column (--gutter), so it never sits behind buttons. */
+.scenery-sky {
+  --gutter: max(0px, (100vw - 880px) / 2);
+  --side: clamp(64px, calc(var(--gutter) - 28px), 130px);
+  position: absolute; z-index: -1; inset: 0 0 auto 0; height: 460px; overflow: hidden; pointer-events: none;
 }
-.site-foot::before {
-  top: 10px; background: var(--hill-back);
-  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 200' preserveAspectRatio='none'%3E%3Cpath d='M0 90 C150 20 300 30 420 70 S700 140 860 60 S1100 20 1200 60 V200 H0Z'/%3E%3C/svg%3E");
-          mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 200' preserveAspectRatio='none'%3E%3Cpath d='M0 90 C150 20 300 30 420 70 S700 140 860 60 S1100 20 1200 60 V200 H0Z'/%3E%3C/svg%3E");
+.art { position: absolute; overflow: visible; }
+.art .glow { fill: var(--sun); opacity: 0.18; }
+.art-suns, .art-moon { width: var(--side); right: max(8px, calc((var(--gutter) - var(--side)) / 2)); top: 70px; }
+.art-balloons, .art-ufo { width: min(var(--side), 86px); left: max(8px, calc((var(--gutter) - min(var(--side), 86px)) / 2)); top: 96px; }
+.art-balloons { animation: bob 7s ease-in-out infinite; }
+.art-umbrella { width: 30px; left: calc(var(--gutter) / 2 - 15px); top: 290px; opacity: 0.55; animation: float-down 16s ease-in-out infinite; }
+.art-moon .glow { fill: #f4ead0; opacity: 0.12; }
+.art-ufo { opacity: 0.9; animation: hover 9s ease-in-out infinite; }
+.art-ufo .blink circle { animation: blink 1.6s steps(2) infinite; }
+.art-ufo .blink circle:nth-child(2n) { animation-delay: 0.8s; }
+.night-only { display: none; }
+@keyframes bob { 50% { transform: translateY(-10px) rotate(2deg); } }
+@keyframes float-down { 0%, 100% { transform: translate(0, 0) rotate(-4deg); } 50% { transform: translate(-18px, 14px) rotate(4deg); } }
+@keyframes hover { 50% { transform: translateX(14px); } }
+@keyframes blink { 50% { opacity: 0.25; } }
+@keyframes firefly { 0%, 100% { opacity: 0.15; } 50% { opacity: 1; } }
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .day-only { display: none; }
+  :root:not([data-theme="light"]) .night-only { display: block; }
+  :root:not([data-theme="light"]) .fireflies { display: inline; }
+  :root:not([data-theme="light"]) .fireflies circle { fill: #f6e27a; filter: drop-shadow(0 0 4px #f6e27a); animation: firefly 3s ease-in-out infinite; }
+  :root:not([data-theme="light"]) .fireflies circle:nth-child(2n) { animation-delay: 1.3s; }
+  :root:not([data-theme="light"]) .fireflies circle:nth-child(3n) { animation-delay: 2.1s; }
+  :root:not([data-theme="light"]) .door-window { fill: #ffcf6e; filter: drop-shadow(0 0 6px #ffb84d); }
+  :root:not([data-theme="light"]) .monolith { fill: #07090e; }
+  :root:not([data-theme="light"]) .origami path { fill: #cfd6e4; }
 }
-.site-foot::after {
-  top: 50px; background: var(--hill-front);
-  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 200' preserveAspectRatio='none'%3E%3Cpath d='M0 70 C200 130 380 10 600 50 S950 120 1200 40 V200 H0Z'/%3E%3C/svg%3E");
-          mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 200' preserveAspectRatio='none'%3E%3Cpath d='M0 70 C200 130 380 10 600 50 S950 120 1200 40 V200 H0Z'/%3E%3C/svg%3E");
+
+/* Phones see the middle of the hill scene; give it room above the text. */
+@media (max-width: 700px) {
+  .site-foot { min-height: 330px; }
+}
+/* Without real side margins, keep just the sun/moon, small, in the corner. */
+@media (max-width: 1040px) {
+  .art-balloons, .art-umbrella, .art-ufo { display: none !important; }
+  .art-suns, .art-moon { width: 64px; right: 10px; top: 62px; opacity: 0.8; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .art, .art *, .fireflies circle { animation: none !important; }
 }
 
 /* ---------- journal ---------- */

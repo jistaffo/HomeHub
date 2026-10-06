@@ -13,6 +13,65 @@
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
+  <!-- Scenery. Small homages to well-loved films; "Spot the movie references" in the footer lists them. -->
+  <div class="scenery-sky" aria-hidden="true">
+    <!-- Star Wars: twin suns -->
+    <svg class="art art-suns day-only" viewBox="0 0 120 80">
+      <circle class="glow" cx="44" cy="44" r="34"/>
+      <circle cx="44" cy="44" r="22" fill="#f6b04a"/>
+      <circle class="glow" cx="88" cy="30" r="22"/>
+      <circle cx="88" cy="30" r="13" fill="#fad27a"/>
+    </svg>
+    <!-- Up: a house carried by balloons -->
+    <svg class="art art-balloons day-only" viewBox="0 0 80 112">
+      <g stroke="#8a6a4a" stroke-width="0.7" opacity="0.7">
+        <line x1="40" y1="66" x2="22" y2="34"/><line x1="40" y1="66" x2="33" y2="22"/><line x1="40" y1="66" x2="46" y2="20"/>
+        <line x1="40" y1="66" x2="58" y2="32"/><line x1="40" y1="66" x2="40" y2="40"/><line x1="40" y1="66" x2="28" y2="46"/><line x1="40" y1="66" x2="53" y2="46"/>
+      </g>
+      <circle cx="22" cy="30" r="9" fill="#e76f51"/><circle cx="33" cy="17" r="10" fill="#e9c46a"/><circle cx="47" cy="15" r="10" fill="#6d9dc5"/>
+      <circle cx="59" cy="28" r="9" fill="#8ab17d"/><circle cx="40" cy="32" r="10" fill="#e5989b"/><circle cx="27" cy="43" r="8" fill="#f4a261"/>
+      <circle cx="53" cy="42" r="8" fill="#b5838d"/><circle cx="16" cy="18" r="7" fill="#2a9d8f"/><circle cx="64" cy="16" r="7" fill="#f4a261"/>
+      <path d="M24 82 L40 67 L56 82 Z" fill="#c9552a"/>
+      <rect x="27" y="81" width="26" height="19" fill="#f3e3c3" stroke="#8a6a4a" stroke-width="0.8"/>
+      <rect x="36" y="89" width="7" height="11" fill="#7a5233"/><rect x="29.5" y="85" width="5" height="5" fill="#9fd0ea"/><rect x="45.5" y="85" width="5" height="5" fill="#9fd0ea"/>
+    </svg>
+    <!-- Mary Poppins: floating in by umbrella -->
+    <svg class="art art-umbrella day-only" viewBox="0 0 40 64">
+      <g fill="#3d2e22">
+        <path d="M4 16 Q20 -2 36 16 Q32 13 28 16 Q24 13 20 16 Q16 13 12 16 Q8 13 4 16 Z"/>
+        <rect x="19.3" y="15" width="1.4" height="14"/>
+        <circle cx="16" cy="31" r="3.2"/>
+        <path d="M16 33 L11 52 L21 52 Z"/>
+        <path d="M18 34 L20 28 L21 29 L19.5 35 Z"/>
+        <rect x="13" y="51" width="1.4" height="7"/><rect x="17.6" y="51" width="1.4" height="7"/>
+        <path d="M11 30.5 L21 30.5 L19 28.6 L13 28.6 Z"/>
+      </g>
+    </svg>
+    <!-- E.T.: a bicycle across the moon -->
+    <svg class="art art-moon night-only" viewBox="0 0 130 120">
+      <circle class="glow" cx="72" cy="54" r="56"/>
+      <circle cx="72" cy="54" r="44" fill="#f4ead0"/>
+      <circle cx="58" cy="40" r="6" fill="#e6dbbd"/><circle cx="86" cy="66" r="9" fill="#e6dbbd"/><circle cx="90" cy="34" r="4" fill="#e6dbbd"/>
+      <g fill="none" stroke="#141c2e" stroke-width="2.4" stroke-linecap="round">
+        <circle cx="52" cy="76" r="8"/><circle cx="82" cy="76" r="8"/>
+        <path d="M52 76 L62 64 L76 64 L82 76 M62 64 L67 76 L76 64 M62 64 L60 59 M76 64 L78 58 L82 58"/>
+      </g>
+      <g fill="#141c2e">
+        <path d="M58 60 L64 46 L69 47 L66 62 Z"/><circle cx="66" cy="42" r="4"/>
+        <rect x="80" y="53" width="11" height="7" rx="1.5"/><circle cx="85" cy="50" r="3.6"/>
+        <path d="M64 50 L76 57 L75 59 L63 53 Z"/>
+      </g>
+    </svg>
+    <!-- Close Encounters: a saucer and its beam -->
+    <svg class="art art-ufo night-only" viewBox="0 0 100 130">
+      <defs><linearGradient id="beam" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe3a3" stop-opacity="0.55"/><stop offset="1" stop-color="#ffe3a3" stop-opacity="0"/></linearGradient></defs>
+      <path d="M38 34 L62 34 L90 130 L10 130 Z" fill="url(#beam)"/>
+      <ellipse cx="50" cy="24" rx="14" ry="10" fill="#9fc9de" opacity="0.8"/>
+      <ellipse cx="50" cy="31" rx="36" ry="8" fill="#56658a"/>
+      <ellipse cx="50" cy="29" rx="36" ry="5" fill="#6d7da3"/>
+      <g class="blink" fill="#ffd27a"><circle cx="24" cy="31" r="2"/><circle cx="37" cy="33.5" r="2"/><circle cx="50" cy="34.5" r="2"/><circle cx="63" cy="33.5" r="2"/><circle cx="76" cy="31" r="2"/></g>
+    </svg>
+  </div>
   <header class="topbar" id="topbar" hidden>
     <a class="brand" href="#/"><span class="brand-mark">10</span><span class="brand-text">Top 10</span></a>
     <nav class="nav">
@@ -26,9 +85,67 @@
   <main id="app" class="app" aria-live="polite"></main>
 
   <footer class="site-foot">
+    <svg class="scenery-hills" viewBox="0 0 1440 260" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+      <!-- far ridge -->
+      <path class="hill-back" d="M0 150 C200 70 420 80 560 118 S860 190 1040 110 S1320 50 1440 96 V260 H0 Z"/>
+      <!-- There Will Be Blood: oil derrick -->
+      <g class="ink" stroke-width="2" fill="none" stroke-linecap="round">
+        <path d="M1276 80 L1290 22 L1304 80 M1280 64 L1300 64 M1283 50 L1297 50 M1286 36 L1294 36 M1280 64 L1297 50 M1300 64 L1283 50 M1283 50 L1294 36 M1297 50 L1286 36"/>
+        <path d="M1287 22 L1293 22"/>
+      </g>
+      <!-- 2001: the monolith -->
+      <rect class="monolith" x="604" y="80" width="11" height="48"/>
+      <!-- Blade Runner: origami unicorn -->
+      <g class="origami" transform="translate(664 120) scale(1.15)">
+        <path d="M0 14 L10 8 L20 10 L18 16 L4 17 Z"/><path d="M17 10 L22 2 L27 5 L21 12 Z"/><path d="M22 2 L29 -6 L25 4 Z"/>
+        <path d="M5 16.5 L4 23 M9 16.5 L10 23 M15 16 L14 22 M18 15.5 L20 21"/>
+      </g>
+      <!-- near hill -->
+      <path class="hill-front" d="M0 192 C220 232 400 140 640 176 S1000 232 1200 170 S1380 148 1440 162 V260 H0 Z"/>
+      <!-- The Wizard of Oz: yellow brick road -->
+      <path class="road" d="M1118 260 C1108 232 1062 214 1050 196 C1040 180 1012 166 1000 152 L1009 151 C1024 164 1060 176 1076 194 C1096 216 1170 234 1222 260 Z"/>
+      <path class="road-bricks" d="M1170 258 C1140 236 1090 218 1064 196 C1048 182 1022 166 1005 152"/>
+      <!-- The Lord of the Rings: a round door in the hill -->
+      <g transform="translate(250 222)">
+        <circle r="23" class="door-frame"/>
+        <circle r="19" class="door"/>
+        <path d="M-19 0 L19 0 M0 -19 L0 19 M-13.4 -13.4 L13.4 13.4 M13.4 -13.4 L-13.4 13.4" class="door-lines"/>
+        <circle r="3" class="knob"/>
+        <circle cx="38" cy="-6" r="7" class="door-window"/>
+      </g>
+      <!-- My Neighbor Totoro: a country bus stop -->
+      <g transform="translate(1372 112)">
+        <rect x="-1.2" y="0" width="2.4" height="46" class="ink-fill"/>
+        <circle cx="0" cy="-2" r="10" class="sign"/>
+        <rect x="-7" y="-4" width="14" height="4" class="sign-band"/>
+      </g>
+      <!-- fireflies (night) -->
+      <g class="fireflies">
+        <circle cx="180" cy="196" r="2.2"/><circle cx="330" cy="186" r="1.8"/><circle cx="470" cy="206" r="2"/>
+        <circle cx="900" cy="214" r="2"/><circle cx="1230" cy="190" r="1.8"/><circle cx="1330" cy="204" r="2.2"/>
+      </g>
+    </svg>
+    <div class="foot-text">
     Movie data from <a href="https://www.themoviedb.org/" target="_blank" rel="noopener">TMDB</a> and
     <a href="https://www.omdbapi.com/" target="_blank" rel="noopener">OMDb</a>. Scores from IMDb, Rotten Tomatoes and Metacritic via OMDb.<br>
     This product uses the TMDB API but is not endorsed or certified by TMDB.
+    <details class="refs">
+      <summary>🎬 Spot the movie references</summary>
+      <ul>
+        <li>Twin suns: <em>Star Wars</em> (1977)</li>
+        <li>A house lifted by balloons: <em>Up</em> (2009)</li>
+        <li>Someone floating by umbrella: <em>Mary Poppins</em> (1964)</li>
+        <li>A bicycle across the moon (at night): <em>E.T. the Extra-Terrestrial</em> (1982)</li>
+        <li>A saucer and its beam (at night): <em>Close Encounters of the Third Kind</em> (1977)</li>
+        <li>The black monolith: <em>2001: A Space Odyssey</em> (1968)</li>
+        <li>A paper unicorn: <em>Blade Runner</em> (1982)</li>
+        <li>The yellow brick road: <em>The Wizard of Oz</em> (1939)</li>
+        <li>A round door in the hill: <em>The Lord of the Rings</em> (2001)</li>
+        <li>An oil derrick on the ridge: <em>There Will Be Blood</em> (2007)</li>
+        <li>A country bus stop: <em>My Neighbor Totoro</em> (1988)</li>
+      </ul>
+    </details>
+    </div>
   </footer>
 
   <div class="toast" id="toast" role="status" hidden></div>
