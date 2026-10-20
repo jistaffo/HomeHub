@@ -1,23 +1,54 @@
 import { W, H, r, curve, rand, setSeed, C } from './lib.mjs';
 
 export function delorean(p) {
-  // Back to the Future: the stainless wedge with twin fire trails.
+  // Back to the Future: the DMC-12 time machine in profile. A low stainless
+  // wedge (long flat hood, raked windshield, short roof, louvered rear slope,
+  // squared-off tail), black side strip, gull-wing door seams, Mr. Fusion on
+  // the rear deck, exhaust vents out back, copper coils and the ribbed
+  // conduit along the sill, turbine-style hubs, and the twin fire trails.
+  const louvers = Array.from({ length: 6 }, (_, i) => {
+    const t = (i + 0.6) / 6.4;
+    const x = 5.6 + t * 12.6;
+    const y = 8.2 - t * 3.9;
+    return `<path d="M${x.toFixed(2)} ${y.toFixed(2)} l1.1 0.55"/>`;
+  }).join('');
+  const hub = (cx, cy, rr) =>
+    `<circle cx="${cx}" cy="${cy}" r="${rr}" fill="#1b1c1f"/><circle cx="${cx}" cy="${cy}" r="${(rr * 0.66).toFixed(2)}" fill="#b9bec4"/>` +
+    `<g stroke="#5c626a" stroke-width="0.35">${Array.from({ length: 8 }, (_, i) => {
+      const a = (i / 8) * Math.PI * 2;
+      const r1 = rr * 0.22;
+      const r2 = rr * 0.62;
+      return `<path d="M${(cx + Math.cos(a) * r1).toFixed(2)} ${(cy + Math.sin(a) * r1).toFixed(2)} L${(cx + Math.cos(a + 0.5) * r2).toFixed(2)} ${(cy + Math.sin(a + 0.5) * r2).toFixed(2)}"/>`;
+    }).join('')}</g><circle cx="${cx}" cy="${cy}" r="${(rr * 0.2).toFixed(2)}" fill="#3a3e44"/>`;
   return `<g class="delorean">
         <defs>
           <linearGradient id="${p}-fire" x1="1" y1="0" x2="0" y2="0"><stop offset="0" stop-color="#fff2a8"/><stop offset="0.25" stop-color="#ffb43c"/><stop offset="0.7" stop-color="#ff5a1f" stop-opacity="0.7"/><stop offset="1" stop-color="#ff5a1f" stop-opacity="0"/></linearGradient>
-          <linearGradient id="${p}-steel" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#eef0f2"/><stop offset="0.6" stop-color="#bfc4ca"/><stop offset="1" stop-color="#8e949b"/></linearGradient>
+          <linearGradient id="${p}-steel" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f3f5f7"/><stop offset="0.45" stop-color="#cfd4d9"/><stop offset="1" stop-color="#9aa0a7"/></linearGradient>
         </defs>
-        <g class="fire-trails"><rect x="-150" y="12.2" width="150" height="2.4" rx="1.2" fill="url(#${p}-fire)"/><rect x="-118" y="15.4" width="122" height="2.4" rx="1.2" fill="url(#${p}-fire)"/></g>
+        <g class="fire-trails"><rect x="-150" y="15.2" width="150" height="2.2" rx="1.1" fill="url(#${p}-fire)"/><rect x="-124" y="17.2" width="128" height="1.8" rx="0.9" fill="url(#${p}-fire)"/></g>
         <g class="car-body">
-        <path d="M0 13 L1 8.5 L12 6.5 L22 2 L33 1.5 L40 6 L50 7.5 L52 10 L51.5 14 L0.5 14.5 Z" fill="url(#${p}-steel)"/>
-        <path d="M21 6.2 L23.5 2.8 L32.5 2.4 L37.5 6.2 Z" fill="#2e3542"/>
-        <path d="M24 6.2 L25.5 3.2 L28.5 3.1 L28.5 6.2 Z" fill="#5a6a80"/>
-        <rect x="1" y="11.6" width="50.5" height="1.4" fill="#4a4f57"/>
-        <path d="M2 9 L9 8 L9 10 L2 10.6 Z" fill="#2a2e35"/>
-        <circle cx="11.5" cy="14.5" r="3.6" fill="#1d1f24"/><circle cx="11.5" cy="14.5" r="1.4" fill="#9aa1a9"/>
-        <circle cx="41" cy="14.5" r="3.6" fill="#1d1f24"/><circle cx="41" cy="14.5" r="1.4" fill="#9aa1a9"/>
+          <g fill="#9aa0a8"><rect x="-2.4" y="9.5" width="3" height="0.9" rx="0.3"/><rect x="-2.4" y="10.9" width="3" height="0.9" rx="0.3"/><rect x="-2.4" y="12.3" width="3" height="0.9" rx="0.3"/></g>
+          <g fill="#2a2c30"><rect x="-2.6" y="9.5" width="0.6" height="0.9"/><rect x="-2.6" y="10.9" width="0.6" height="0.9"/><rect x="-2.6" y="12.3" width="0.6" height="0.9"/></g>
+          <path d="M1 14.6 L0.4 10.4 L1.2 9 L5 8.4 L19 4 L31 3.4 L39.5 7.4 L57.5 9.4 L60 10.4 L60.4 12.6 L59.6 14.6 L53.6 14.6 A5 5 0 0 0 43.6 14.6 L17.6 14.6 A5 5 0 0 0 7.6 14.6 Z" fill="url(#${p}-steel)"/>
+          <path d="M40 7.9 L57.4 9.8" stroke="#ffffff" stroke-width="0.45" opacity="0.7"/>
+          <path d="M1 12.4 L59.9 12.8 L59.7 14.6 L53.6 14.6 A5 5 0 0 0 43.6 14.6 L17.6 14.6 A5 5 0 0 0 7.6 14.6 L1 14.6 Z" fill="#8b9097"/>
+          <path d="M1 11.2 L59.9 11.6 L59.9 12.6 L1 12.3 Z" fill="#26282c"/>
+          <path d="M21 4.6 L30.6 4.1 L37.6 7.5 L21.4 7.9 Z" fill="#2b3340"/>
+          <path d="M22.2 5 L26 4.8 L25 7.6 L22.4 7.7 Z" fill="#6b7d93" opacity="0.7"/>
+          <path d="M20.2 4.2 L20.6 11.2 M38.4 7.6 L38.1 11.4 M20.2 4.2 L30.8 3.7" stroke="#7e848c" stroke-width="0.35" fill="none"/>
+          <g stroke="#3a3e45" stroke-width="0.55" stroke-linecap="round">${louvers}</g>
+          <rect x="2.8" y="5.2" width="3.4" height="3.4" rx="0.7" fill="#ece9e2"/>
+          <rect x="2.6" y="4.8" width="3.8" height="0.9" rx="0.4" fill="#c9c4b9"/>
+          <path d="M3.4 6.4 H5.6" stroke="#9a948a" stroke-width="0.3"/>
+          <g stroke="#c4793a" stroke-width="0.55">${[0, 1, 2, 3].map((i) => `<path d="M${2 + i * 1.2} 9.6 l0.9 1.4"/>`).join('')}</g>
+          <rect x="18.5" y="12.6" width="24" height="1.3" rx="0.65" fill="#3a3d42"/>
+          <g stroke="#6a6f77" stroke-width="0.3">${Array.from({ length: 15 }, (_, i) => `<path d="M${(19.4 + i * 1.55).toFixed(2)} 12.6 v1.3"/>`).join('')}</g>
+          <rect x="57.9" y="10.5" width="2.1" height="1.1" rx="0.2" fill="#f6f2dc"/>
+          <rect x="58.6" y="11.8" width="1.2" height="0.6" fill="#f2a23a"/>
+          <rect x="0.4" y="10.2" width="0.9" height="1.4" fill="#c4323a"/>
+          ${hub(12.6, 14.2, 4)}${hub(48.6, 14.4, 3.8)}
         </g>
-        <path class="headlight" d="M52 9.5 L90 4 L90 17 L52 11.5 Z" fill="#fff6c8" opacity="0"/>
+        <path class="headlight" d="M60 10.6 L96 5 L96 18 L60 12 Z" fill="#fff6c8" opacity="0"/>
       </g>`;
 }
 
@@ -95,17 +126,40 @@ export function warRig() {
 }
 
 export function tumbler() {
-  // The Dark Knight: the Tumbler, all angles and huge tires.
+  // The Dark Knight: the Tumbler in profile. Matte black and faceted, a low
+  // cockpit slit, a long sloping armored nose, huge knobby rear tires, front
+  // wheels pushed out ahead of the nose on exposed arms, the airbrake flap
+  // and jet nozzle at the back.
+  const tire = (cx, cy, rr) => `<circle cx="${cx}" cy="${cy}" r="${rr}" fill="#141414"/>
+          <circle cx="${cx}" cy="${cy}" r="${(rr - 0.7).toFixed(2)}" fill="none" stroke="#2c2c2c" stroke-width="1.4" stroke-dasharray="1.5 1.2"/>
+          <circle cx="${cx}" cy="${cy}" r="${(rr * 0.6).toFixed(2)}" fill="#1e1f21"/>
+          <circle cx="${cx}" cy="${cy}" r="${(rr * 0.38).toFixed(2)}" fill="#3a3d42"/>
+          <g fill="#6a6e74">${Array.from({ length: 5 }, (_, i) => {
+            const a = (i / 5) * Math.PI * 2;
+            return `<circle cx="${(cx + Math.cos(a) * rr * 0.25).toFixed(2)}" cy="${(cy + Math.sin(a) * rr * 0.25).toFixed(2)}" r="0.35"/>`;
+          }).join('')}</g>
+          <circle cx="${cx}" cy="${cy}" r="${(rr * 0.12).toFixed(2)}" fill="#141414"/>`;
   return `<g class="vehicle tumbler">
         <g class="car-body">
-          <path d="M0 12 L4 5 L18 3 L26 -2 L40 -2 L48 4 L58 6 L60 12 Z" fill="#2b2d30"/>
-          <path d="M26 -2 L40 -2 L44 2 L28 3 Z" fill="#4a4e55"/>
-          <path d="M4 5 L18 3 L20 7 L6 8 Z M44 4 L58 6 L58 9 L46 8 Z" fill="#3a3d42"/>
-          <path d="M30 0 L38 0 L40 2 L31 2.4 Z" fill="#7a8592"/>
-          <circle cx="10" cy="13" r="5.6" fill="#141414"/><circle cx="10" cy="13" r="2" fill="#3a3a3a"/>
-          <circle cx="50" cy="12.6" r="6.2" fill="#141414"/><circle cx="50" cy="12.6" r="2.2" fill="#3a3a3a"/>
-          <circle cx="22" cy="14" r="4.2" fill="#141414"/>
+          <path d="M44 9.4 L52 13" stroke="#2f3236" stroke-width="1.8" stroke-linecap="round"/>
+          <path d="M43 6.6 L51 12" stroke="#5c6066" stroke-width="0.9" stroke-dasharray="0.7 0.5"/>
+          <path d="M2 12.4 L0.4 6 L2 0.6 L14 -1.6 L24 -0.6 L34 1.6 L46 5 L58 8 L60.4 10.6 L53 11.4 L46 12 L22 13 Z" fill="#2a2c2f"/>
+          <path d="M14 -1.6 L24 -0.6 L34 1.6 L46 5 L58 8 L56 8.6 L44 6.4 L32 3.6 L22 1.8 L13 0.4 Z" fill="#45484e"/>
+          <path d="M22 1.8 L32 3.6 L44 6.4 L56 8.6 L53 11.4 L46 12 L26 12.6 L24 6 Z" fill="#303337"/>
+          <g stroke="#53575d" stroke-width="0.35" fill="none"><path d="M24 6 L26 12.6 M34 4.6 L35 12.3 M44 6.4 L46 12 M24 6 L44 7.6"/></g>
+          <path d="M23 0.4 L32 2.2 L33 3.6 L24 2.2 Z" fill="#121418"/>
+          <path d="M25.4 1.1 L30 2" stroke="#6b7f96" stroke-width="0.35"/>
+          <path d="M57 8.4 L60.6 9.6 L60.4 11.4 L56.6 11 Z" fill="#3a3d42"/>
+          <rect x="58.4" y="9.6" width="1.6" height="0.7" fill="#d8d4c0"/>
+          <rect x="-0.9" y="5.4" width="2.6" height="4.2" rx="0.4" fill="#1a1a1a"/>
+          <ellipse cx="0.1" cy="7.5" rx="0.7" ry="1.4" fill="#4a2a1a"/>
+          ${tire(12, 10.2, 8)}
+          <path d="M2.6 2.8 L21.6 1.2 L23.4 4.8 L20.4 5 L18 3.6 L6 4.6 L3.4 6.2 Z" fill="#37393e"/>
+          <path d="M2.6 2.8 L21.6 1.2" stroke="#55595f" stroke-width="0.4"/>
+          <path d="M1 0.9 L9.4 -3.6 L10.6 -2.8 L2.6 1.8 Z" fill="#45484e"/>
+          <path d="M6 -1.4 L7 1.2" stroke="#2a2c2f" stroke-width="0.6"/>
+          ${tire(52, 13, 5.2)}
         </g>
-        <path class="headlight" d="M60 7 L92 2 L92 14 L60 9 Z" fill="#fff6c8" opacity="0"/>
+        <path class="headlight" d="M60.6 9.8 L96 4.4 L96 16.4 L60.6 11.2 Z" fill="#fff6c8" opacity="0"/>
       </g>`;
 }
