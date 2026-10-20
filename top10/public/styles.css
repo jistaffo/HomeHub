@@ -358,96 +358,93 @@ body::before {
 .list-foot { display: flex; justify-content: center; margin-top: 18px; }
 /* ---------- scenery ---------- */
 
-/* The footer is a painted panorama (inline SVG); its text sits on the near hill. */
+/* The footer is a painted panorama (inline SVG from scripts/build-scenery.mjs);
+   its text sits on the near hill. */
 .site-foot {
   position: relative; isolation: isolate; width: 100%; margin-top: 40px;
-  min-height: clamp(250px, 23vw, 340px); padding: 0 16px 22px;
+  min-height: clamp(300px, 28vw, 430px); padding: 0 16px 22px;
   display: flex; flex-direction: column; justify-content: flex-end;
   text-align: center; font-size: 12px; line-height: 1.6; color: var(--hill-text);
-  background: linear-gradient(to bottom, transparent 0%, color-mix(in srgb, var(--sky-2) 70%, transparent) 55%, transparent 80%);
+  background: linear-gradient(to bottom, transparent 0%, color-mix(in srgb, var(--sky-2) 70%, transparent) 50%, transparent 75%);
 }
 .site-foot a { font-weight: 700; }
 .foot-text { position: relative; max-width: 640px; margin: 0 auto; }
 .scenery-hills { position: absolute; z-index: -1; inset: 0; width: 100%; height: 100%; pointer-events: none; }
-.mtn-far { fill: color-mix(in srgb, var(--mtn) 55%, var(--sky-2)); }
-.mtn { fill: var(--mtn); }
-.snow { fill: var(--snow); }
-.dino { fill: var(--mtn-deep); }
-.emerald { fill: var(--emerald); }
-.hill-back { fill: var(--hill-back); }
-.hill-front { fill: var(--hill-front); }
-.ink { stroke: var(--scene-ink); }
-.ink-fill { fill: var(--scene-ink); }
-.staff { stroke: var(--scene-ink); stroke-width: 1.2; }
-.staff-tip { fill: var(--scene-ink); }
-.road { fill: var(--road); }
-.road-bricks { fill: none; stroke: color-mix(in srgb, var(--road) 60%, #8a5a1a); stroke-width: 1.2; stroke-dasharray: 5 6; opacity: 0.6; }
-.sign { fill: #e9b949; stroke: var(--scene-ink); stroke-width: 1.5; }
-.sign-inner { fill: none; stroke: color-mix(in srgb, var(--scene-ink) 70%, transparent); stroke-width: 1; }
-.sign-board { fill: #f7f1e3; stroke: var(--scene-ink); stroke-width: 1; }
-.sign-lines { stroke: color-mix(in srgb, var(--scene-ink) 60%, transparent); stroke-width: 0.9; }
-.water { fill: var(--water); }
-.ripple { fill: none; stroke: color-mix(in srgb, var(--water) 55%, #fff); stroke-width: 1.4; stroke-linecap: round; }
-.fin { fill: #56656f; }
-.fireflies { display: none; }
+
+/* Night: moonlight multiplied over the day painting, lights on top. */
+.night-tint, .night-lights { display: none; }
+:root[data-theme="dark"] .night-tint { display: inline; fill: #34477e; mix-blend-mode: multiply; }
+:root[data-theme="dark"] .night-lights { display: inline; }
+.glow-green { fill: #5fe3a0; opacity: 0.22; filter: blur(14px); }
+.torch-glow { fill: #ffb347; filter: blur(4px); opacity: 0.9; }
+.staff-glow { fill: #fff6cf; filter: drop-shadow(0 0 3px #fff1b0); }
+.fireflies circle { fill: #f6e27a; filter: drop-shadow(0 0 3px #f6e27a); animation: firefly 3.2s ease-in-out infinite; }
+.lit-windows rect { filter: drop-shadow(0 0 2px #ffcf6e); }
+:root[data-theme="dark"] .delorean .headlight { opacity: 0.35; }
+:root[data-theme="dark"] .car-body { filter: brightness(0.55) saturate(0.7); }
+
+/* Back to the Future: every so often the car drives through. */
+.drive { animation: drive 26s linear infinite; }
+@keyframes drive {
+  0% { transform: translate(-200px, 243px); }
+  45% { transform: translate(1800px, 247px); }
+  100% { transform: translate(1800px, 247px); }
+}
+.fire-trails { animation: flicker 0.18s steps(2) infinite; }
+@keyframes flicker { 50% { opacity: 0.75; } }
+/* Jaws: the fin circles the lake. */
+.fin { animation: circle-lake 22s ease-in-out infinite; }
+@keyframes circle-lake {
+  0%, 100% { transform: translate(250px, 320px); }
+  50% { transform: translate(350px, 316px); }
+}
 
 .refs { margin-top: 6px; }
 .refs summary { cursor: pointer; font-weight: 700; list-style: none; display: inline-block; padding: 2px 10px; border-radius: 999px; background: color-mix(in srgb, var(--hill-front) 70%, #000 8%); }
 .refs summary::-webkit-details-marker { display: none; }
-.refs ul { list-style: none; margin: 8px auto 0; padding: 10px 14px; max-width: 560px; text-align: left; border-radius: 14px; background: color-mix(in srgb, var(--hill-front) 80%, #000 12%); columns: 2 230px; column-gap: 18px; }
+.refs ul { list-style: none; margin: 8px auto 0; padding: 10px 14px; max-width: 600px; text-align: left; border-radius: 14px; background: color-mix(in srgb, var(--hill-front) 80%, #000 12%); columns: 2 250px; column-gap: 18px; }
 .refs li { break-inside: avoid; margin: 2px 0; }
 
 /* Sky pieces live in the empty side margins beside the 880px content column:
-   suns/moon top right, balloons/saucer top left, Kiki gliding below them. */
+   suns or moon top right, the balloon house top left, Kiki gliding below. */
 .scenery-sky {
   --gutter: max(0px, (100vw - 880px) / 2);
-  --side: clamp(64px, calc(var(--gutter) - 40px), 124px);
-  position: absolute; z-index: -1; inset: 0 0 auto 0; height: 520px; overflow: hidden; pointer-events: none;
+  --side: clamp(64px, calc(var(--gutter) - 40px), 132px);
+  position: absolute; z-index: -1; inset: 0 0 auto 0; height: 560px; overflow: hidden; pointer-events: none;
 }
 .art { position: absolute; overflow: visible; }
-.art .glow { fill: var(--sun); opacity: 0.18; }
-.art .moon-glow { fill: #f4ead0; opacity: 0.12; }
-.art-right { width: var(--side); right: calc((var(--gutter) - var(--side)) / 2); top: 74px; }
-.art-left { width: min(var(--side), 84px); left: calc((var(--gutter) - min(var(--side), 84px)) / 2); top: 84px; }
+.art-right { width: var(--side); right: calc((var(--gutter) - var(--side)) / 2); top: 70px; }
+.art-left { width: min(var(--side), 104px); left: calc((var(--gutter) - min(var(--side), 104px)) / 2); top: 70px; }
 .art-balloons { animation: bob 7s ease-in-out infinite; }
-.art-ufo { opacity: 0.9; animation: hover 9s ease-in-out infinite; }
-.art-ufo .blink circle { animation: blink 1.6s steps(2) infinite; }
-.art-ufo .blink circle:nth-child(2n) { animation-delay: 0.8s; }
-.art-kiki { width: min(var(--side), 96px); right: calc((var(--gutter) - min(var(--side), 96px)) / 2); top: 300px; opacity: 0.75; animation: glide 12s ease-in-out infinite; }
-.art-kiki .bow { fill: var(--accent); }
+.art-kiki { width: min(var(--side), 118px); right: calc((var(--gutter) - min(var(--side), 118px)) / 2); top: 320px; animation: glide 12s ease-in-out infinite; }
 .night-only { display: none; }
-@keyframes bob { 50% { transform: translateY(-10px) rotate(2deg); } }
-@keyframes glide { 0%, 100% { transform: translate(0, 0) rotate(-3deg); } 50% { transform: translate(-14px, -12px) rotate(2deg); } }
-@keyframes hover { 50% { transform: translateX(12px); } }
-@keyframes blink { 50% { opacity: 0.25; } }
-@keyframes firefly { 0%, 100% { opacity: 0.15; } 50% { opacity: 1; } }
-
 :root[data-theme="dark"] .day-only { display: none; }
 :root[data-theme="dark"] .night-only { display: block; }
-:root[data-theme="dark"] .fireflies { display: inline; }
-:root[data-theme="dark"] .fireflies circle { fill: #f6e27a; filter: drop-shadow(0 0 4px #f6e27a); animation: firefly 3s ease-in-out infinite; }
-:root[data-theme="dark"] .fireflies circle:nth-child(2n) { animation-delay: 1.3s; }
-:root[data-theme="dark"] .fireflies circle:nth-child(3n) { animation-delay: 2.1s; }
-:root[data-theme="dark"] .emerald { filter: drop-shadow(0 0 8px #5fe09a); }
-:root[data-theme="dark"] .staff-tip { fill: #fff3c4; filter: drop-shadow(0 0 4px #ffe9a0); }
-:root[data-theme="dark"] .fin { fill: #8796a3; }
-:root[data-theme="dark"] .dino { fill: #34405f; }
-:root[data-theme="dark"] .art-kiki { opacity: 0.6; }
+:root[data-theme="dark"] .art-balloons, :root[data-theme="dark"] .art-kiki { filter: brightness(0.72) saturate(0.85); }
+.blink circle { animation: blink 1.6s steps(2) infinite; }
+.blink circle:nth-child(2n) { animation-delay: 0.8s; }
+@keyframes bob { 50% { transform: translateY(-10px) rotate(2deg); } }
+@keyframes glide { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(-14px, -12px); } }
+@keyframes blink { 50% { opacity: 0.3; } }
+@keyframes firefly { 0%, 100% { opacity: 0.15; } 50% { opacity: 1; } }
 
-/* Phones: show a smaller slice of the panorama (Fellowship through the
-   Emerald City) as a strip, with the text on the near hill below it. */
+/* Phones: a scaled strip of the panorama (the Fellowship through the Emerald
+   City), with the footer text on the near hill below it. */
 @media (max-width: 700px) {
-  .site-foot { min-height: 0; padding: 0 0 22px; overflow: hidden; background: linear-gradient(to bottom, transparent 150px, var(--hill-front) 150px); }
-  .scenery-hills { position: relative; inset: auto; display: block; width: 760px; height: 158px; margin-left: calc(50% - 330px); }
+  .site-foot { min-height: 0; padding: 0 0 22px; overflow: hidden; background: linear-gradient(to bottom, transparent 190px, #6f9f4f 190px); }
+  :root[data-theme="dark"] .site-foot { background: linear-gradient(to bottom, transparent 190px, #172c27 190px); }
+  .scenery-hills { position: relative; inset: auto; display: block; width: 820px; height: 195px; margin-left: calc(50% - 323px); }
   .foot-text { padding: 0 16px; }
 }
 /* Without real side margins, keep just the sun/moon, small, in the corner. */
 @media (max-width: 1040px) {
   .art-left, .art-kiki { display: none !important; }
-  .art-right { width: 64px; right: 10px; top: 62px; opacity: 0.8; }
+  .art-right { width: 64px; right: 10px; top: 62px; opacity: 0.85; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .art, .art *, .fireflies circle { animation: none !important; }
+  .art, .art *, .fireflies circle, .drive, .fin, .fire-trails, .blink circle { animation: none !important; }
+  .drive { transform: translate(1150px, 245px); }
+  .fin { transform: translate(300px, 318px); }
 }
 
 /* ---------- journal ---------- */
