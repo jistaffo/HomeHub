@@ -141,7 +141,7 @@ lib/auth.js          password hashing, tokens, reset links
 lib/journal.js       journal validation + the notes-file parser
 lib/store.js         JSON-file persistence (atomic writes, daily backups)
 scripts/reset-link.js  command-line password reset for a locked-out owner
-scripts/build-scenery.mjs  draws the background art into public/index.html (run after editing it)
+scripts/build-scenery.mjs  draws the background art (countryside + city scenes, from scripts/scenery/) into public/index.html
 lib/categories.js    list categories and year rules
 public/              the client: index.html, app.js, styles.css (no build step)
 test/                node:test suites + mock OMDb / TMDB fixtures

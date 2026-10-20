@@ -1212,6 +1212,11 @@ document.getElementById('userMenuBtn').addEventListener('click', () => {
           .map(([v, label]) => `<button type="button" role="radio" data-theme-pick="${v}" aria-checked="${(window.top10Theme?.get() || 'auto') === v}">${label}</button>`)
           .join('')}
       </div>
+      <div class="segmented" role="radiogroup" aria-label="Scenery" style="margin-top:8px">
+        ${[['country', '🌄 Countryside'], ['city', '🏙️ City']]
+          .map(([v, label]) => `<button type="button" role="radio" data-scene-pick="${v}" aria-checked="${(window.top10Theme?.getScene() || 'country') === v}">${label}</button>`)
+          .join('')}
+      </div>
       <p class="muted" style="font-size:13px;margin:8px 0 0">Auto follows your device’s setting. Saved on this device.</p>
     </div>
 
@@ -1237,6 +1242,12 @@ document.getElementById('userMenuBtn').addEventListener('click', () => {
     location.hash = '#/';
     route();
   };
+  $sheet.querySelectorAll('[data-scene-pick]').forEach((b) =>
+    b.addEventListener('click', () => {
+      window.top10Theme?.setScene(b.dataset.scenePick);
+      $sheet.querySelectorAll('[data-scene-pick]').forEach((x) => x.setAttribute('aria-checked', String(x === b)));
+    }),
+  );
   $sheet.querySelectorAll('[data-theme-pick]').forEach((b) =>
     b.addEventListener('click', () => {
       window.top10Theme?.set(b.dataset.themePick);

@@ -407,6 +407,41 @@ body::before {
   50% { transform: translate(320px, 316px); }
 }
 
+/* Countryside or city (html[data-scene], set by theme.js). */
+.scene-city, .scene-city-only { display: none !important; }
+:root[data-scene="city"] .scene-country, :root[data-scene="city"] .scene-country-only { display: none !important; }
+:root[data-scene="city"] .scene-city { display: block !important; }
+:root[data-scene="city"] .scene-city-only { display: block !important; }
+:root[data-scene="city"] details.scene-city-only { display: block !important; }
+
+/* City: the parade has five vehicles (the Tumbler joins), so a longer loop. */
+.scene-city .drive { animation-name: drive5; animation-duration: 80s; }
+.drive-5 { animation-delay: -64s; }
+@keyframes drive5 {
+  0% { transform: translate(-260px, 243px); }
+  20% { transform: translate(1860px, 245px); }
+  100% { transform: translate(1860px, 245px); }
+}
+.swing { animation: swing 4.6s ease-in-out infinite alternate; }
+@keyframes swing { from { transform: rotate(-20deg); } to { transform: rotate(16deg); } }
+.pig { animation: pig 9s ease-in-out infinite; }
+.pig { transform: translate(454px, 116px) rotate(-6deg); }
+@keyframes pig { 0%, 100% { transform: translate(454px, 116px) rotate(-6deg); } 50% { transform: translate(458px, 111px) rotate(-2deg); } }
+.lamp-glow { fill: #ffd98a; opacity: 0.85; filter: blur(3px); }
+.lamp-pool { fill: #ffd98a; opacity: 0.25; filter: blur(2px); }
+.atomic { filter: drop-shadow(0 0 4px #6fd8ff) drop-shadow(0 0 10px #4fb8ff); }
+.bat-signal { filter: drop-shadow(0 0 6px #fff1b0); }
+.beacon { fill: #ff5a4a; animation: blink 1.4s steps(2) infinite; }
+.crystal-beam { filter: drop-shadow(0 0 4px #e6dcff); }
+.nightwalker { mix-blend-mode: screen; }
+.kodamas { filter: drop-shadow(0 1px 0.5px rgb(0 0 0 / 0.25)); }
+:root[data-theme="dark"] .kodamas { filter: drop-shadow(0 0 3px #e9fff2) brightness(0.92); }
+:root[data-theme="dark"] .day-light { display: none; }
+:root[data-scene="city"] .site-foot { color: #1d2e3e; }
+:root[data-scene="city"][data-theme="dark"] .site-foot { color: #d9e6f2; }
+:root[data-scene="city"] .refs summary, :root[data-scene="city"] .refs ul { background: color-mix(in srgb, #6f9fbd 75%, #000 10%); }
+:root[data-scene="city"][data-theme="dark"] .refs summary, :root[data-scene="city"][data-theme="dark"] .refs ul { background: color-mix(in srgb, #1c3157 85%, #000 10%); }
+
 .refs { margin-top: 6px; }
 .refs summary { cursor: pointer; font-weight: 700; list-style: none; display: inline-block; padding: 2px 10px; border-radius: 999px; background: color-mix(in srgb, var(--hill-front) 70%, #000 8%); }
 .refs summary::-webkit-details-marker { display: none; }
@@ -441,12 +476,14 @@ body::before {
 @media (max-width: 700px) {
   .site-foot { min-height: 0; padding: 0 0 22px; overflow: hidden; background: linear-gradient(to bottom, transparent 190px, #6f9f4f 190px); }
   :root[data-theme="dark"] .site-foot { background: linear-gradient(to bottom, transparent 190px, #172c27 190px); }
+  :root[data-scene="city"] .site-foot { background: linear-gradient(to bottom, transparent 190px, #7aa8c3 190px, #6f9fbd 280px); }
+  :root[data-scene="city"][data-theme="dark"] .site-foot { background: linear-gradient(to bottom, transparent 190px, #172c5d 190px); }
   .scenery-hills { position: relative; inset: auto; display: block; width: 820px; height: 195px; margin-left: calc(50% - 323px); }
   .foot-text { padding: 0 16px; }
 }
 /* Without real side margins, keep just the sun/moon, small, in the corner. */
 @media (max-width: 1040px) {
-  .art-left, .art-kiki { display: none !important; }
+  .art-left, .art-kiki, :root[data-scene="city"] .art-left { display: none !important; }
   .art-right { width: 64px; right: 10px; top: 62px; opacity: 0.85; }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -457,6 +494,8 @@ body::before {
   .drive-3 { transform: translate(300px, 244px); }
   .drive-4 { transform: translate(1222px, 244px); }
   .drive-4 .dust { display: none; }
+  .drive-5 { transform: translate(760px, 244px); }
+  .swing, .pig, .beacon { animation: none !important; }
   .fin { transform: translate(270px, 318px); }
 }
 
