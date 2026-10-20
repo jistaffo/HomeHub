@@ -382,21 +382,29 @@ body::before {
 .lit-windows rect { filter: drop-shadow(0 0 2px #ffcf6e); }
 :root[data-theme="dark"] .delorean .headlight { opacity: 0.35; }
 :root[data-theme="dark"] .car-body { filter: brightness(0.55) saturate(0.7); }
+:root[data-theme="dark"] .dust { opacity: 0.35; }
+.gargantua { filter: drop-shadow(0 0 6px #ffcf8a); }
+.cabin-secret { filter: drop-shadow(0 0 2px #7fe7ff); opacity: 0.85; }
 
-/* Back to the Future: every so often the car drives through. */
-.drive { animation: drive 26s linear infinite; }
+/* The road parade: the DeLorean, the Little Miss Sunshine van, the Bride's
+   motorcycle and the War Rig take turns, one crossing every 16 seconds. */
+.drive { animation: drive 64s linear infinite; transform: translate(-400px, 243px); }
+.drive-2 { animation-delay: -16s; }
+.drive-3 { animation-delay: -32s; }
+.drive-4 { animation-delay: -48s; }
 @keyframes drive {
-  0% { transform: translate(-200px, 243px); }
-  45% { transform: translate(1800px, 247px); }
-  100% { transform: translate(1800px, 247px); }
+  0% { transform: translate(-260px, 243px); }
+  25% { transform: translate(1860px, 245px); }
+  100% { transform: translate(1860px, 245px); }
 }
+.drive-4 .flames { animation: flicker 0.15s steps(2) infinite; transform-origin: 55px -14px; }
 .fire-trails { animation: flicker 0.18s steps(2) infinite; }
 @keyframes flicker { 50% { opacity: 0.75; } }
 /* Jaws: the fin circles the lake. */
 .fin { animation: circle-lake 22s ease-in-out infinite; }
 @keyframes circle-lake {
-  0%, 100% { transform: translate(250px, 320px); }
-  50% { transform: translate(350px, 316px); }
+  0%, 100% { transform: translate(220px, 320px); }
+  50% { transform: translate(320px, 316px); }
 }
 
 .refs { margin-top: 6px; }
@@ -442,9 +450,14 @@ body::before {
   .art-right { width: 64px; right: 10px; top: 62px; opacity: 0.85; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .art, .art *, .fireflies circle, .drive, .fin, .fire-trails, .blink circle { animation: none !important; }
-  .drive { transform: translate(1150px, 245px); }
-  .fin { transform: translate(300px, 318px); }
+  .art, .art *, .fireflies circle, .drive, .fin, .fire-trails, .blink circle, .flames { animation: none !important; }
+  /* Everyone parked along the road instead of driving through. */
+  .drive-1 { transform: translate(1046px, 245px); }
+  .drive-2 { transform: translate(552px, 244px); }
+  .drive-3 { transform: translate(300px, 244px); }
+  .drive-4 { transform: translate(1222px, 244px); }
+  .drive-4 .dust { display: none; }
+  .fin { transform: translate(270px, 318px); }
 }
 
 /* ---------- journal ---------- */

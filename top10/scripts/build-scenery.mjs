@@ -440,6 +440,182 @@ function jawsLake(x, y) {
       </g>`;
 }
 
+function vwBus() {
+  // Little Miss Sunshine: the yellow-and-white VW camper, the family running
+  // behind it to push-start it.
+  const runner = (x, h, lean = 0) => `<g transform="translate(${x} 18) rotate(${lean})" fill="${C.ink}">
+          <path d="M-1 ${-h * 0.4} L-4 0 M1 ${-h * 0.4} L3.5 -1.5" stroke="${C.ink}" stroke-width="1.3" stroke-linecap="round"/>
+          <path d="M-2.2 ${-h * 0.4} L-1.8 ${-h * 0.85} L2.4 ${-h * 0.85} L2.6 ${-h * 0.4} Z"/>
+          <circle cx="0.6" cy="${-h * 0.85 - 2.2}" r="2.1"/>
+          <path d="M1.5 ${-h * 0.78} L6.5 ${-h * 0.62}" stroke="${C.ink}" stroke-width="1.2" stroke-linecap="round"/>
+        </g>`;
+  return `<g class="vehicle bus">
+        ${runner(-20, 15, 14)}${runner(-11, 13, 16)}${runner(-28, 11, 12)}
+        <g class="car-body">
+          <path d="M0 15 L0 6 C0 2 2 0 6 0 L46 0 C52 0 56 3 57 8 L58 15 Z" fill="#f4c22f"/>
+          <path d="M0 6 C0 2 2 0 6 0 L46 0 C51 0 54.5 2.5 56 6 Z" fill="#fbf6ea"/>
+          <path d="M43 1.5 L50 1.5 C53 2 54.6 3.6 55.2 5.4 L43 5.4 Z" fill="#7aa9bd"/>
+          <g fill="#7aa9bd">${[4, 13, 22, 31].map((x) => `<rect x="${x}" y="1.6" width="7" height="3.8" rx="0.8"/>`).join('')}</g>
+          <path d="M56.5 7.5 L58 7.5 L58 15 L56.5 15 Z" fill="#e0ab1e"/>
+          <circle cx="56.8" cy="10" r="1.3" fill="#fff8d0"/>
+          <rect x="0" y="11.5" width="58" height="1.2" fill="#d9a51c"/>
+          <circle cx="11" cy="15.5" r="3.6" fill="#1d1f24"/><circle cx="11" cy="15.5" r="1.4" fill="#e8e6e0"/>
+          <circle cx="47" cy="15.5" r="3.6" fill="#1d1f24"/><circle cx="47" cy="15.5" r="1.4" fill="#e8e6e0"/>
+        </g>
+      </g>`;
+}
+
+function brideBike() {
+  // Kill Bill: the Bride in her yellow suit with the black stripe, katana on
+  // her back, on the yellow motorcycle.
+  return `<g class="vehicle bike">
+        <g class="car-body">
+          <circle cx="6" cy="14.5" r="4" fill="#1d1f24"/><circle cx="6" cy="14.5" r="1.6" fill="#8a8f96"/>
+          <circle cx="31" cy="14.5" r="4" fill="#1d1f24"/><circle cx="31" cy="14.5" r="1.6" fill="#8a8f96"/>
+          <path d="M6 14 L14 8 L26 8 L31 14" stroke="#2a2a2a" stroke-width="1.6" fill="none"/>
+          <path d="M11 9 C13 5 20 4 25 5 L33 7 C35 8 35 11 32 12 L22 12 Z" fill="#f2c31b"/>
+          <path d="M26 6 L33 7.5 L31 10 Z" fill="#2b2b2b"/>
+          <path d="M12 9 L5 8.5 L4 10.5 L11 11 Z" fill="#f2c31b"/>
+          <path d="M14 -9 L20 -1" stroke="#2b2b2b" stroke-width="1.4" stroke-linecap="round"/>
+          <path d="M13.5 -9.5 L12.5 -11" stroke="#8a6a3a" stroke-width="1.6" stroke-linecap="round"/>
+          <path d="M14 8 L16 -4 C17 -7 21 -8 23 -6 L28 1 L26 2.5 L21 -2 L19 8 Z" fill="#f2c31b"/>
+          <path d="M16.5 -3 L18.6 7.5" stroke="#1b1b1b" stroke-width="1.3"/>
+          <path d="M16 8 L22 8 L24 12 L21 12 Z" fill="#f2c31b"/>
+          <circle cx="20.5" cy="-9.5" r="3.4" fill="#f2c31b"/>
+          <path d="M21 -10.5 L24 -10 L23.6 -8 L21 -8.4 Z" fill="#1b1b1b"/>
+        </g>
+      </g>`;
+}
+
+function warRig() {
+  // Mad Max: Fury Road: the War Rig, flames from the stacks, dust storm behind.
+  const dust = [[-40, 6, 14], [-62, 0, 18], [-88, 4, 16], [-112, -2, 20], [-140, 6, 15], [-74, -14, 13], [-104, -20, 15]]
+    .map(([x, y, rr]) => `<circle cx="${x}" cy="${y}" r="${rr}"/>`)
+    .join('');
+  return `<g class="vehicle rig">
+        <g class="dust" fill="#d9b98a" opacity="0.7">${dust}</g>
+        <g class="car-body">
+          <rect x="-6" y="7" width="58" height="5" fill="#2e2a27"/>
+          <rect x="-4" y="-7" width="52" height="15" rx="7.5" fill="#9b8270"/>
+          <rect x="-4" y="-7" width="52" height="5" rx="2.5" fill="#b9a18c" opacity="0.8"/>
+          <rect x="-4" y="3" width="52" height="5" rx="2.5" fill="#6f5a4b" opacity="0.8"/>
+          <g fill="#7a4a2e" opacity="0.85"><rect x="6" y="-7" width="3" height="15"/><rect x="22" y="-7" width="3" height="15"/><rect x="38" y="-7" width="3" height="15"/></g>
+          <g fill="#b36a35" opacity="0.6"><circle cx="14" cy="1" r="3"/><circle cx="31" cy="-2" r="2.4"/><circle cx="44" cy="2" r="2"/></g>
+          <g fill="#3a3330">${[0, 12, 28, 44].map((x) => `<path d="M${x} -7 L${x + 1.4} -11 L${x + 2.8} -7 Z"/>`).join('')}</g>
+          <path d="M50 14 L50 -4 L60 -6 L66 0 L74 2 L76 14 Z" fill="#3a3a3a"/>
+          <path d="M58 -3 L63 -3 L66 1 L58 1 Z" fill="#8a9aa8"/>
+          <rect x="73" y="3" width="4" height="10" fill="#c9cdd2"/>
+          <rect x="52" y="-14" width="2.2" height="11" fill="#b9bec4"/><rect x="56" y="-14" width="2.2" height="11" fill="#b9bec4"/>
+          <path d="M66 0 L74 2 L76 8 L66 8 Z" fill="#2a2a2a"/>
+          ${[2, 11, 36, 45, 57, 70].map((x) => `<circle cx="${x}" cy="14.8" r="4" fill="#1d1f24"/><circle cx="${x}" cy="14.8" r="1.4" fill="#6b6b6b"/>`).join('')}
+        </g>
+        <g class="flames"><path d="M53.1 -14 C50 -20 54 -24 53 -30 C57 -25 57 -19 53.1 -14 Z M57.1 -14 C54.5 -19 58 -22 57.5 -27 C61 -22 60.5 -18 57.1 -14 Z" fill="#ff8a2a"/><path d="M53.1 -15 C52 -18 54 -21 54 -24 C55.5 -21 55 -18 53.1 -15 Z" fill="#ffe08a"/></g>
+      </g>`;
+}
+
+function cabin(x, y) {
+  // The Cabin in the Woods: a little cabin in a dark clump of pines.
+  const pine = (px, py, h, c) =>
+    `<path d="M${px} ${py - h} L${px - h * 0.32} ${py - h * 0.45} L${px - h * 0.2} ${py - h * 0.45} L${px - h * 0.4} ${py} L${px + h * 0.4} ${py} L${px + h * 0.2} ${py - h * 0.45} L${px + h * 0.32} ${py - h * 0.45} Z" fill="${c}"/>`;
+  return `<g>
+        ${pine(x - 24, y + 2, 30, '#3f6a3a')}${pine(x + 22, y + 3, 34, '#365f33')}${pine(x - 13, y - 2, 26, '#4a7a42')}${pine(x + 32, y + 1, 24, '#3f6a3a')}
+        <rect x="${x - 10}" y="${y - 11}" width="20" height="12" fill="#7a5236"/>
+        <g stroke="#5f3f29" stroke-width="0.7">${[-8, -5, -2].map((d) => `<line x1="${x - 10}" y1="${y + d}" x2="${x + 10}" y2="${y + d}"/>`).join('')}</g>
+        <path d="M${x - 13} ${y - 10} L${x} ${y - 20} L${x + 13} ${y - 10} Z" fill="#3e2c22"/>
+        <rect x="${x + 5}" y="${y - 22}" width="3" height="7" fill="#5a4a40"/>
+        <rect x="${x - 3}" y="${y - 6}" width="5" height="7" fill="#3a2618"/>
+        <rect class="window" x="${x + 4}" y="${y - 8}" width="4" height="3.5" fill="#9cc6d6"/>
+        ${pine(x + 12, y + 4, 18, '#2f5a2e')}
+      </g>`;
+}
+
+function cabinSecret(x, y) {
+  // ...and what's really underneath it: the grid of glowing cubes (night only).
+  const cols = 5, rows = 2, c = 6.4;
+  const cubes = [];
+  const who = ['M-1.5 2.5 L-1.5 -1 L0 -2.5 L1.5 -1 L1.5 2.5 Z', 'M-2 2.5 C-2 -1 2 -1 2 2.5 Z', 'M0 -2.5 L2 2.5 L-2 2.5 Z', 'M-2.2 2.5 L-1 -1 L1 -1 L2.2 2.5 Z M-0.8 -2.6 L0.8 -2.6 L0.8 -1 L-0.8 -1 Z'];
+  for (let i = 0; i < cols; i++)
+    for (let j = 0; j < rows; j++) {
+      const cx = x - (cols * c) / 2 + i * c + c / 2;
+      const cy = y + j * c + c / 2;
+      cubes.push(`<rect x="${r(cx - 2.7)}" y="${r(cy - 2.7)}" width="5.4" height="5.4" fill="${(i + j) % 3 ? '#7fe7ff' : '#ffd27a'}" opacity="0.2"/><path transform="translate(${r(cx)} ${r(cy)}) scale(0.75)" d="${who[(i * 3 + j) % who.length]}" fill="#0d1726" opacity="0.7"/>`);
+    }
+  return `<g class="cabin-secret">
+        <rect x="${x - (cols * c) / 2 - 3}" y="${y - 3}" width="${cols * c + 6}" height="${rows * c + 6}" rx="2" fill="#0b1220" opacity="0.55"/>
+        <path d="M${x} ${y - 3} L${x} ${y - 14}" stroke="#7fe7ff" stroke-width="0.8" opacity="0.5" stroke-dasharray="1.5 1.5"/>
+        ${cubes.join('')}
+      </g>`;
+}
+
+function shieldBench(x, y) {
+  // The Avengers: an old man on a lakeside bench, the shield leaning beside him.
+  return `<g transform="translate(${x} ${y})">
+        <rect x="-14" y="-7" width="26" height="2.2" fill="#8a6a4a"/>
+        <rect x="-14" y="-12" width="26" height="2" fill="#8a6a4a"/>
+        <path d="M-12 -5 L-12 0 M10 -5 L10 0 M-12 -12 L-12 -7 M10 -12 L10 -7" stroke="#5f4530" stroke-width="1.4"/>
+        <g fill="${C.ink}">
+          <circle cx="-4" cy="-17.5" r="2.3" fill="#d9d4cc"/><circle cx="-4" cy="-17.2" r="2.3" fill="#c8c2b8" opacity="0.6"/>
+          <path d="M-7 -15 L-1 -15 L0 -7 L-7.5 -7 Z" fill="#6b7a8c"/>
+          <path d="M-1 -7.5 L5 -7.5 L5 -1 L3.6 -1 L3.6 -5.6 L-1 -5.6 Z" fill="#4a4f57"/>
+        </g>
+        <g transform="translate(18 -5.5)">
+          <circle r="6.2" fill="#c7353a"/><circle r="4.7" fill="#f4f1ea"/><circle r="3.3" fill="#c7353a"/><circle r="2.1" fill="#2d5aa8"/>
+          <path d="M0 -1.6 L0.45 -0.5 L1.6 -0.5 L0.7 0.2 L1 1.4 L0 0.7 L-1 1.4 L-0.7 0.2 L-1.6 -0.5 L-0.45 -0.5 Z" fill="#fff"/>
+        </g>
+      </g>`;
+}
+
+function wheatField(x0, x1, y) {
+  // Gladiator: the golden wheat, and a man walking through it, hand trailing.
+  const stalks = [];
+  for (let x = x0; x <= x1; x += 2.6) {
+    const edge = Math.min(x - x0, x1 - x) / 30;
+    const h = 10 + Math.min(1, edge) * 8 + rand() * 3;
+    const top = y - h + rand() * 2;
+    stalks.push(`<path d="M${r(x)} ${y + 8} L${r(x + 1)} ${r(top)}" stroke="${rand() > 0.5 ? '#d9b44a' : '#c99d36'}" stroke-width="1"/><ellipse cx="${r(x + 1)}" cy="${r(top - 1.5)}" rx="1.1" ry="2.6" fill="#ebc65a"/>`);
+  }
+  const fx = x0 + (x1 - x0) * 0.55;
+  return `<g>
+        <path d="M${x0 - 10} ${y + 12} C${x0} ${y - 4} ${x1} ${y - 6} ${x1 + 14} ${y + 12} Z" fill="#d7b14a"/>
+        ${stalks.join('')}
+        <g transform="translate(${r(fx)} ${y + 2})" fill="#3e3128">
+          <path d="M-4 -6 L-3.4 -20 L3.6 -20 L4.4 -6 Z" fill="#5a3d2a"/>
+          <path d="M-3.6 -12 L4 -12 L4.4 -6 L-4 -6 Z" fill="#3e2a1e"/>
+          <circle cx="0" cy="-22.8" r="2.7"/>
+          <path d="M-3 -18 L-9.5 -9.5" stroke="#5a3d2a" stroke-width="1.8" stroke-linecap="round"/>
+          <path d="M-9.5 -9.5 L-11.5 -8.8" stroke="#c99c7a" stroke-width="1.6" stroke-linecap="round"/>
+        </g>
+        ${stalks.filter((_, i) => i % 3 === 0).slice(Math.floor(stalks.length * 0.45 / 3), Math.floor(stalks.length * 0.62 / 3)).join('')}
+      </g>`;
+}
+
+function fenceWithRat(x, y) {
+  // The Departed: the rat on the railing.
+  return `<g transform="translate(${x} ${y})">
+        <g fill="#8a6a4a">${[0, 16, 32, 48].map((px) => `<rect x="${px - 1.2}" y="-14" width="2.4" height="14"/>`).join('')}</g>
+        <rect x="-3" y="-12" width="54" height="1.8" fill="#9a7a58"/>
+        <rect x="-3" y="-6" width="54" height="1.8" fill="#9a7a58"/>
+        <g transform="translate(24 -12)" fill="#6d6560">
+          <path d="M-4 0 C-4 -3.4 1 -4.4 3.5 -2.4 L6 -2 L5.5 -0.6 L3 0 Z"/>
+          <circle cx="2.4" cy="-3.4" r="1.1"/>
+          <path d="M-4 -0.5 C-8 0 -9 3 -12 3.5" stroke="#8a7e78" stroke-width="0.7" fill="none"/>
+          <circle cx="5.2" cy="-1.6" r="0.4" fill="#111"/>
+        </g>
+      </g>`;
+}
+
+function gargantua(x, y) {
+  // Interstellar: the black hole, its lensed ring of light (night only).
+  return `<g class="gargantua" transform="translate(${x} ${y})">
+        <defs><radialGradient id="ggGlow"><stop offset="0.35" stop-color="#ffd9a0" stop-opacity="0.45"/><stop offset="1" stop-color="#ffd9a0" stop-opacity="0"/></radialGradient></defs>
+        <circle r="46" fill="url(#ggGlow)"/>
+        <circle r="17.5" fill="none" stroke="#ffe7b8" stroke-width="3.2" opacity="0.9"/>
+        <ellipse rx="44" ry="6" fill="none" stroke="#ffd18a" stroke-width="3.6" opacity="0.8"/>
+        <circle r="14.5" fill="#05070c"/>
+        <path d="M-44 0 A44 6 0 0 0 44 0" fill="none" stroke="#fff1cf" stroke-width="3" />
+      </g>`;
+}
+
 function hills() {
   seed = 3;
   const far = curve([0, 176], [
@@ -515,7 +691,10 @@ function hills() {
       <!-- Middle ridge -->
       <path d="${mid.d} L1600 ${H} L0 ${H} Z" fill="url(#midG)"/>
       <path d="${mid.d}" fill="none" stroke="${C.ridge}" stroke-width="2" opacity="0.7"/>
-      ${treeLine(470, 640, mid.yAt, { s: 0.62 })}
+      ${treeLine(470, 535, mid.yAt, { s: 0.62 })}
+      <!-- The Cabin in the Woods -->
+      ${cabin(580, r(mid.yAt(580) + 3))}
+      ${treeLine(622, 650, mid.yAt, { s: 0.62 })}
       ${treeLine(1120, 1180, mid.yAt, { s: 0.6 })}
       ${treeLine(1336, 1580, mid.yAt, { s: 0.75, gap: 11 })}
       <!-- Jurassic Park: the gate -->
@@ -541,7 +720,13 @@ function hills() {
       <!-- My Neighbor Totoro: the bus stop -->
       ${busStop(826, 251)}
       <!-- Jaws -->
-      ${jawsLake(300, 318)}
+      ${jawsLake(270, 318)}
+      <!-- The Avengers: the bench by the lake, the shield beside it -->
+      ${shieldBench(414, 306)}
+      <!-- Gladiator: the wheat field -->
+      ${wheatField(1180, 1420, 304)}
+      <!-- The Departed: the rat on the fence -->
+      ${fenceWithRat(744, 250)}
 
       </g>
       <!-- Paper grain over the painting -->
@@ -550,9 +735,15 @@ function hills() {
       <!-- Night: moonlight over everything, then the lights -->
       <rect class="night-tint" width="${W}" height="${H}" mask="url(#sceneMask)"/>
       <!-- Back to the Future: driving through on the road (above the tint so the fire glows) -->
-      <g class="drive">${delorean()}</g>
+      <g class="drive drive-1">${delorean()}</g>
+      <!-- Little Miss Sunshine, Kill Bill and Mad Max: Fury Road take their turns on the road -->
+      <g class="drive drive-2">${vwBus()}</g>
+      <g class="drive drive-3">${brideBike()}</g>
+      <g class="drive drive-4">${warRig()}</g>
       <g class="night-lights">
         ${mothership()}
+        ${gargantua(1236, 78)}
+        ${cabinSecret(580, r(mid.yAt(580) + 16))}
         <ellipse class="glow-green" cx="1046" cy="176" rx="90" ry="62"/>
         <g opacity="0.62">${emeraldCity(1046, 216)}</g>
         <circle cx="1410" cy="${r(mid.yAt(1384) + 4 - 60)}" r="9" class="torch-glow"/>
