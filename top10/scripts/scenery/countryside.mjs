@@ -1,5 +1,5 @@
 import { W, H, r, curve, rand, setSeed, C, paintDefs, shadow, leafyTree, cumulus, flowers, tufts } from './lib.mjs';
-import { delorean, vwBus, brideBike, warRig } from './vehicles.mjs';
+import { delorean, vwBus, warRig } from './vehicles.mjs';
 
 function mountains() {
   // Faceted peaks lit from the right (where the suns are): gradient faces,
@@ -396,6 +396,38 @@ function crystalBeam(x, y) {
       </g>`;
 }
 
+function twoPines(x, y) {
+  // Kill Bill: the Two Pines wedding chapel out in the desert hills, a little
+  // white clapboard church with its belfry, between its two pines.
+  const pine = (px, h) => `<g transform="translate(${px} ${y})">
+        <rect x="-0.9" y="-4" width="1.8" height="4.4" fill="${C.trunk}"/>
+        <path d="M0 ${-h} L${h * 0.2} ${-h * 0.62} L${h * 0.13} ${-h * 0.62} L${h * 0.27} ${-h * 0.3} L${h * 0.18} ${-h * 0.3} L${h * 0.33} -3 L${-h * 0.33} -3 L${-h * 0.18} ${-h * 0.3} L${-h * 0.27} ${-h * 0.3} L${-h * 0.13} ${-h * 0.62} L${-h * 0.2} ${-h * 0.62} Z" fill="#3f6b3a"/>
+        <path d="M0 ${-h} L${h * 0.2} ${-h * 0.62} L${h * 0.13} ${-h * 0.62} L${h * 0.27} ${-h * 0.3} L${h * 0.18} ${-h * 0.3} L${h * 0.33} -3 L0 -3 Z" fill="#335a30"/>
+      </g>`;
+  return `<g>
+        ${pine(x - 17, 34)}${pine(x + 18, 30)}
+        <g transform="translate(${x} ${y})">
+          <rect x="-9" y="-13" width="18" height="13" fill="${C.house}"/>
+          <rect x="4" y="-13" width="5" height="13" fill="${C.houseShade}"/>
+          <g stroke="#d8cfbf" stroke-width="0.4">${[-10.5, -8, -5.5, -3].map((v) => `<path d="M-9 ${v} H9"/>`).join('')}</g>
+          <path d="M-10.5 -12.6 L0 -21 L10.5 -12.6 Z" fill="#8a6a52"/>
+          <path d="M0 -21 L10.5 -12.6 L7 -12.6 Z" fill="#6f5442"/>
+          <rect x="-2.4" y="-27" width="4.8" height="6.4" fill="${C.house}"/>
+          <path d="M-1.2 -25.6 h2.4 v2.6 h-2.4 Z" fill="#5a4a3c"/>
+          <path d="M-3.2 -27 L0 -32 L3.2 -27 Z" fill="#8a6a52"/>
+          <path d="M0 -32 V-36 M-1.4 -34.6 H1.4" stroke="#5a4a3c" stroke-width="0.7"/>
+          <path d="M-2.6 0 V-6 A2.6 2.6 0 0 1 2.6 -6 V0 Z" fill="#6b4f3a"/>
+          <path d="M-7 -9.4 h2.6 v3.4 h-2.6 Z M4.4 -9.4 h2.6 v3.4 h-2.6 Z" fill="#7b8fa0"/>
+          <path d="M-3.6 0 L-3.6 0.8 L3.6 0.8 L3.6 0 Z" fill="#cfc6b6"/>
+        </g>
+        <g transform="translate(${x - 12} ${y + 3})">
+          <path d="M0 0 V-6" stroke="#5a4a3c" stroke-width="0.8"/>
+          <rect x="-6.6" y="-9.4" width="13.2" height="4" rx="0.4" fill="#e9dcc0" stroke="#5a4a3c" stroke-width="0.5"/>
+          <text x="0" y="-6.5" font-family="Georgia, serif" font-size="2" font-weight="700" fill="#5a4a3c" text-anchor="middle">TWO PINES</text>
+        </g>
+      </g>`;
+}
+
 export function countryside() {
   setSeed(3);
   const far = curve([0, 176], [
@@ -506,6 +538,9 @@ export function countryside() {
       ${jurassicGate(1384, mid.yAt(1384) + 4)}
       <!-- Field of Dreams -->
       <g transform="translate(1150 ${r(mid.yAt(1180) + 12)}) scale(1.35) translate(-1150 ${r(-(mid.yAt(1180) + 12))})">${shadow('cs', 1164, mid.yAt(1180) + 11, 20, 3)}${fieldOfDreams(1150, mid.yAt(1180) + 12)}</g>
+      <!-- Kill Bill: the Two Pines wedding chapel -->
+      ${shadow('cs', 806, mid.yAt(806) + 6, 26, 3.4)}
+      <g transform="translate(806 ${r(mid.yAt(806) + 6)}) scale(1.45) translate(-806 ${r(-(mid.yAt(806) + 6))})">${twoPines(806, r(mid.yAt(806) + 6))}</g>
       <!-- The Sound of Music: spinning on the hilltop -->
       ${soundOfMusic(884, mid.yAt(884) + 0.8)}
       <!-- The Lord of the Rings: the Fellowship walking the ridge -->
@@ -556,9 +591,8 @@ export function countryside() {
       <g class="kodamas">${kodamas.map(([x, y, sc, t]) => kodama(x, y, sc, t)).join('')}</g>
       <!-- Back to the Future: driving through on the road (above the tint so the fire glows) -->
       <g class="drive drive-1">${delorean('cs')}</g>
-      <!-- Little Miss Sunshine, Kill Bill and Mad Max: Fury Road take their turns on the road -->
+      <!-- Little Miss Sunshine and Mad Max: Fury Road take their turns on the road -->
       <g class="drive drive-2">${vwBus()}</g>
-      <g class="drive drive-3">${brideBike()}</g>
       <g class="drive drive-4">${warRig()}</g>
       <g class="night-lights">
         ${mothership()}

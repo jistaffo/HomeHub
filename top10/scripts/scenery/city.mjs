@@ -1,6 +1,6 @@
 // The city scene: a painted skyline on a bay, full of film homages.
 import { W, H, r, rand, setSeed, paintDefs, shadow, leafyTree, cumulus } from './lib.mjs';
-import { delorean, vwBus, brideBike, warRig, tumbler } from './vehicles.mjs';
+import { delorean, vwBus, warRig, tumbler } from './vehicles.mjs';
 
 const P = 'ct';
 const STREET = 246; // where buildings meet the sidewalk
@@ -308,6 +308,34 @@ function streetLamp(x) {
 
 // ---------- the scene ----------
 
+function blueLeaves(x) {
+  // Kill Bill: the House of Blue Leaves, a two-storey Tokyo teahouse with
+  // upswept tiled roofs, paper screens and a row of blue lanterns (they glow
+  // at night).
+  const roof = (x0, x1, y, h) => `<path d="M${x0 - 4} ${y - 2.6} C${x0} ${y - 0.4} ${x0 + 4} ${y} ${x0 + 8} ${y} L${x1 - 8} ${y} C${x1 - 4} ${y} ${x1} ${y - 0.4} ${x1 + 4} ${y - 2.6} L${x1 - 6} ${y - h} L${x0 + 6} ${y - h} Z" fill="#4c5a6c"/>
+        <path d="M${x0 - 4} ${y - 2.6} C${x0} ${y - 0.4} ${x0 + 4} ${y} ${x0 + 8} ${y} L${x1 - 8} ${y} C${x1 - 4} ${y} ${x1} ${y - 0.4} ${x1 + 4} ${y - 2.6}" stroke="#2f3946" stroke-width="1" fill="none"/>
+        <g stroke="#3d4858" stroke-width="0.4">${Array.from({ length: Math.floor((x1 - x0 - 8) / 2.4) }, (_, i) => `<path d="M${r(x0 + 6 + i * 2.4)} ${y - h + 0.6} L${r(x0 + 5 + i * 2.4)} ${y - 0.6}"/>`).join('')}</g>`;
+  const screens = (x0, x1, y0, y1) => `<rect x="${x0}" y="${y0}" width="${x1 - x0}" height="${y1 - y0}" fill="#3b2a24"/>
+        <g fill="#efe6cf">${Array.from({ length: Math.floor((x1 - x0 - 1) / 5) }, (_, i) => `<rect class="shoji" x="${x0 + 1 + i * 5}" y="${y0 + 1.2}" width="4" height="${y1 - y0 - 2.4}"/>`).join('')}</g>
+        <g stroke="#3b2a24" stroke-width="0.3">${Array.from({ length: Math.floor((x1 - x0 - 1) / 5) }, (_, i) => `<path d="M${x0 + 3 + i * 5} ${y0 + 1.2} v${y1 - y0 - 2.4} M${x0 + 1 + i * 5} ${(y0 + y1) / 2} h4"/>`).join('')}</g>`;
+  const lanterns = [6, 13, 20, 27, 34, 41].map((dx) => `<g transform="translate(${x + dx} 225)"><path d="M0 -1.6 V0" stroke="#2f3946" stroke-width="0.4"/><ellipse cx="0" cy="2" rx="1.7" ry="2.2" fill="#3d72c4"/><path d="M-1 0.2 h2 M-1 3.8 h2" stroke="#1f3b6a" stroke-width="0.5"/></g>`).join('');
+  const body = `<g>
+        <rect x="${x - 1}" y="${STREET - 3}" width="${48}" height="3" fill="#8f8a80"/>
+        ${screens(x, x + 46, 227, STREET - 3)}
+        <rect x="${x + 19}" y="231" width="8" height="${STREET - 234}" fill="#2a1d18"/>
+        <path d="M${x + 18.6} 231 h8.8 v5 h-8.8 Z" fill="#2f5aa8"/>
+        <path d="M${x + 21.5} 231 v5 M${x + 24.5} 231 v5" stroke="#1f3b6a" stroke-width="0.5"/>
+        ${roof(x, x + 46, 227, 6)}
+        ${lanterns}
+        ${screens(x + 6, x + 40, 207, 221)}
+        ${roof(x + 4, x + 42, 207, 9)}
+        <rect x="${x + 42}" y="204" width="4.4" height="16" fill="#2a1d18"/>
+        <g fill="#e8d7b0" font-family="Georgia, serif" font-size="2.6" text-anchor="middle">${['青', '葉', '屋'].map((c, i) => `<text x="${x + 44.2}" y="${208.6 + i * 4}">${c}</text>`).join('')}</g>
+      </g>`;
+  const glow = `<g class="blue-leaves-glow"><rect x="${x + 1}" y="228" width="44" height="${STREET - 232}" fill="#9cc4ff" opacity="0.45"/><rect x="${x + 7}" y="208" width="32" height="12" fill="#9cc4ff" opacity="0.45"/>${[6, 13, 20, 27, 34, 41].map((dx) => `<circle cx="${x + dx}" cy="227" r="3.2" fill="#7fb2ff"/>`).join('')}</g>`;
+  return { body, glow };
+}
+
 export function city() {
   lit.length = 0;
   setSeed(21);
@@ -333,12 +361,12 @@ export function city() {
     [700, 30, 70, 'teal'],
     [800, 28, 58, 'brick'],
     [1000, 34, 66, 'brick'],
-    [1046, 36, 54, 'stone'],
   ].map(([x, w, h, st]) => building(x, w, h, st));
   const deco = artDecoKong(760);
   const old = bruges(262);
   const bps = battersea(388);
   const pub = winchester(566);
+  const hobl = blueLeaves(1036);
   const bat = batSignal(696, STREET - 104, 700, 40);
   const gz = godzilla(1206, BAY_Y + 2);
 
@@ -393,6 +421,8 @@ export function city() {
       ${bps}
       <!-- Shaun of the Dead: the Winchester -->
       ${pub}
+      <!-- Kill Bill: the House of Blue Leaves -->
+      ${hobl.body}
 
       <!-- The street and the road -->
       <rect x="0" y="${STREET - 2}" width="${BAY_X}" height="8" fill="#cfc8bc"/>
@@ -420,6 +450,7 @@ export function city() {
         ${lampGlows}
         ${bat.light}
         ${gz.glow}
+        ${hobl.glow}
         <circle cx="760" cy="18" r="1.8" class="beacon"/>
         <g class="d9-lights" fill="#ff7a6a">${[1150, 1210, 1290, 1350].map((x) => `<circle cx="${x}" cy="${r(82 + (x % 3))}" r="1.2"/>`).join('')}</g>
         <circle cx="262" cy="140" r="6" fill="#ffe7a8" opacity="0.8"/>
@@ -427,7 +458,6 @@ export function city() {
       <!-- The road parade (The Dark Knight's Tumbler joins in the city) -->
       <g class="drive drive-1">${delorean(P)}</g>
       <g class="drive drive-2">${vwBus()}</g>
-      <g class="drive drive-3">${brideBike()}</g>
       <g class="drive drive-4">${warRig()}</g>
       <g class="drive drive-5">${tumbler()}</g>
     </svg>`;

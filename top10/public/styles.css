@@ -386,19 +386,21 @@ body::before {
 .gargantua { filter: drop-shadow(0 0 6px #ffcf8a); }
 .cabin-secret { filter: drop-shadow(0 0 2px #7fe7ff); opacity: 0.85; }
 
-/* The road parade: the DeLorean, the Little Miss Sunshine van, the Bride's
-   motorcycle and the War Rig take turns, one crossing every 16 seconds. */
-.drive { animation: drive 64s linear infinite; transform: translate(-400px, 243px); }
+/* The road parade: the DeLorean, the Little Miss Sunshine bus and the War
+   Rig take turns in the countryside, one crossing every 16 seconds. */
+.drive { animation: drive3 48s linear infinite; transform: translate(-400px, 243px); }
 .drive-2 { animation-delay: -16s; }
-.drive-3 { animation-delay: -32s; }
-.drive-4 { animation-delay: -48s; }
-@keyframes drive {
+.drive-4 { animation-delay: -32s; }
+@keyframes drive3 {
   0% { transform: translate(-260px, 243px); }
-  25% { transform: translate(1860px, 245px); }
+  33.333% { transform: translate(1860px, 245px); }
   100% { transform: translate(1860px, 245px); }
 }
-.drive-4 .flames { animation: flicker 0.15s steps(2) infinite; transform-origin: 55px -14px; }
+.drive-4 .flames, .guitar-flame { animation: flicker 0.15s steps(2) infinite; }
 .fire-trails { animation: flicker 0.18s steps(2) infinite; }
+.time-sparks { display: none; }
+:root[data-theme="dark"] .time-sparks { display: inline; filter: drop-shadow(0 0 2px #6fd0ff); animation: flicker 0.12s steps(2) infinite; }
+.blue-leaves-glow circle { filter: blur(2px); }
 @keyframes flicker { 50% { opacity: 0.75; } }
 /* Jaws: the fin circles the lake. */
 .fin { animation: circle-lake 22s ease-in-out infinite; }
@@ -414,12 +416,12 @@ body::before {
 :root[data-scene="city"] .scene-city-only { display: block !important; }
 :root[data-scene="city"] details.scene-city-only { display: block !important; }
 
-/* City: the parade has five vehicles (the Tumbler joins), so a longer loop. */
-.scene-city .drive { animation-name: drive5; animation-duration: 80s; }
-.drive-5 { animation-delay: -64s; }
-@keyframes drive5 {
+/* City: the Tumbler joins, so four vehicles and a longer loop. */
+.scene-city .drive { animation-name: drive; animation-duration: 64s; }
+.drive-5 { animation-delay: -48s; }
+@keyframes drive {
   0% { transform: translate(-260px, 243px); }
-  20% { transform: translate(1860px, 245px); }
+  25% { transform: translate(1860px, 245px); }
   100% { transform: translate(1860px, 245px); }
 }
 .swing { animation: swing 4.6s ease-in-out infinite alternate; }
@@ -489,12 +491,11 @@ body::before {
 @media (prefers-reduced-motion: reduce) {
   .art, .art *, .fireflies circle, .drive, .fin, .fire-trails, .blink circle, .flames { animation: none !important; }
   /* Everyone parked along the road instead of driving through. */
-  .drive-1 { transform: translate(1046px, 245px); }
-  .drive-2 { transform: translate(552px, 244px); }
-  .drive-3 { transform: translate(300px, 244px); }
-  .drive-4 { transform: translate(1222px, 244px); }
+  .drive-1 { transform: translate(560px, 245px); }
+  .drive-2 { transform: translate(300px, 244px); }
+  .drive-4 { transform: translate(1260px, 244px); }
   .drive-4 .dust { display: none; }
-  .drive-5 { transform: translate(760px, 244px); }
+  .drive-5 { transform: translate(800px, 244px); }
   .swing, .pig, .beacon { animation: none !important; }
   .fin { transform: translate(270px, 318px); }
 }
