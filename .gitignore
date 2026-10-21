@@ -1,0 +1,8 @@
+# Never commit local config/secrets. The app stores your Google Sheets Web
+# App URL and access code in the browser's localStorage, not in any file —
+# these entries are just a safety net in case that ever changes.
+.env
+.env.*
+*.local
+secrets.json
+config.local.json
