@@ -37,6 +37,10 @@ cp .env.example .env     # then paste your keys into .env
 npm start                # → http://localhost:4100
 ```
 
+On a Mac you can instead double-click **Start Top 10.command**: it pulls the
+latest version (when the folder is a git clone), runs `npm install`, opens the
+app in your browser and starts it. Close its window to stop the app.
+
 The first person to sign up becomes the **group owner**. Everyone after that
 needs the invite link from the **Friends** page (it fills in the invite code
 for them).
