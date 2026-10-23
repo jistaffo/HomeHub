@@ -66,16 +66,6 @@ function toggleAcc(head) {
 }
 
 // ============================================================
-// showFP() — floor plan switcher
-// ============================================================
-function showFP(level) {
-  const mw = document.getElementById('fp-main-wrap');
-  const bw = document.getElementById('fp-bsmt-wrap');
-  if (level === 'main') { if(mw) mw.style.display=''; if(bw) bw.style.display='none'; }
-  else { if(mw) mw.style.display='none'; if(bw) bw.style.display=''; }
-}
-
-// ============================================================
 // Lightbox
 // ============================================================
 function openHubLb(src, cap) {
@@ -203,19 +193,18 @@ async function fullReload() {
   Object.keys(_cache).forEach(k => delete _cache[k]);
   try { await renderLog(); }          catch(e) { console.warn('renderLog', e); }
   try { await renderContractors(); }  catch(e) { console.warn('renderContractors', e); }
-  try { await renderWarranties(); }   catch(e) { console.warn('renderWarranties', e); }
-  try { await renderFilters(); }      catch(e) { console.warn('renderFilters', e); }
+  try { await renderAppliances(); }   catch(e) { console.warn('renderAppliances', e); }
   try { await renderUtils(); }        catch(e) { console.warn('renderUtils', e); }
   try { await renderUtilChart(); }    catch(e) { console.warn('renderUtilChart', e); }
   try {
     await loadTaskCompletions();
     buildCal();
-    buildDashUpcoming();
+    buildDashDueThisMonth();
   } catch(e) { console.warn('calendar', e); }
   try { await ctRender(); }           catch(e) { console.warn('ctRender', e); }
-  try { await renderTodo(); }         catch(e) { console.warn('renderTodo', e); }
+  try { await renderProjects(); }     catch(e) { console.warn('renderProjects', e); }
   try { await renderFindings(); }     catch(e) { console.warn('renderFindings', e); }
-  try { await buildDashMoveIn(); }    catch(e) { console.warn('buildDashMoveIn', e); }
+  try { await buildDashAlerts(); }    catch(e) { console.warn('buildDashAlerts', e); }
   try { await loadSensitiveFields(); } catch(e) { console.warn('sensitiveFields', e); }
   try { await renderSensitiveEditor(); } catch(e) { console.warn('renderSensitiveEditor', e); }
 }
@@ -242,10 +231,8 @@ function showSetupModal() {
           <li>Execute as: <strong style="color:#ece6db">Me</strong> &nbsp;|&nbsp; Who has access: <strong style="color:#ece6db">Anyone</strong></li>
           <li>Deploy &rarr; authorize &rarr; copy the <strong style="color:#93ab8a">Web App URL</strong></li>
           <li>Paste the URL and your HH_TOKEN value below &rarr; Connect</li>
+          <li>In the Apps Script editor, run <code style="color:#89a4b8">setupUtilityImportTrigger</code> once (Run menu) to turn on monthly bill auto-import and authorize Gmail access</li>
         </ol>
-        <div style="margin-top:10px;padding:8px 10px;background:#2b2825;border-radius:6px;font-size:12px;color:#6d6557">
-          ⚠️ Make sure you copy the <strong style="color:#ece6db">/exec</strong> URL (not /dev). "Anyone" access just means anyone with the URL can reach it — the HH_TOKEN is what actually gates reading or writing your data.
-        </div>
       </div>
       <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px">
         <input id="gas-url-input" type="url" placeholder="https://script.google.com/macros/s/.../exec"
@@ -449,13 +436,13 @@ async function renderSensitiveEditor() {
 // MULTI-USER SYNC — 60s polling, idle-aware apply, per-record merge
 // ============================================================
 const SYNC_KEYS = [
-  'homehub:logs', 'homehub:contractors', 'homehub:warranties', 'homehub:utils',
-  'homehub:ct', 'homehub:findings', 'homehub:todos',
-  'homehub:taskCompletions', 'homehub:filters', 'homehub:sensitive'
+  'homehub:logs', 'homehub:contractors', 'homehub:appliances', 'homehub:utils',
+  'homehub:ct', 'homehub:findings', 'homehub:projects',
+  'homehub:taskCompletions', 'homehub:sensitive'
 ];
 const RECORD_ARRAY_KEYS = { // key -> field used as the merge identity
-  'homehub:logs': 'id', 'homehub:contractors': 'id', 'homehub:warranties': 'id',
-  'homehub:utils': 'month', 'homehub:ct': 'id', 'homehub:findings': 'id', 'homehub:todos': 'id'
+  'homehub:logs': 'id', 'homehub:contractors': 'id', 'homehub:appliances': 'id',
+  'homehub:utils': 'month', 'homehub:ct': 'id', 'homehub:findings': 'id', 'homehub:projects': 'id'
 };
 const POLL_INTERVAL_MS = 60000;
 const IDLE_THRESHOLD_MS = 4000;
@@ -557,37 +544,192 @@ function startPolling() {
 }
 
 // ============================================================
-// CALENDAR
+// APPLIANCES & SYSTEMS — unified cards (replaces Lifecycles,
+// Warranties, Air Filter Tracker, Appliance Registry)
+// ============================================================
+const SEED_APPLIANCES = [
+  { id:'hp-outdoor', name:'Heat Pump — Outdoor Unit', category:'HVAC',
+    manufacturer:'Mitsubishi', model:'SUZ-AK30NLHZ (Hyper-Heat, cold climate)',
+    serial:'65U0129165PR27', extra:'AHRI 215712240',
+    installDate:'2026-09-28', expectedLifeYrs:15,
+    manualUrl:'https://www.mitsubishicomfort.com/support/manuals', manualLabel:'Mitsubishi Comfort manuals (search model SUZ-AK30NLHZ)',
+    status:'new', contractorIds:[12,13,14,15,16,17] },
+  { id:'hp-indoor', name:'Heat Pump — Indoor Air Handler', category:'HVAC',
+    manufacturer:'Mitsubishi', model:'SVZ-AP30NL (ducted)',
+    serial:'58N0541332P115', extra:'',
+    installDate:'2026-09-28', expectedLifeYrs:15,
+    manualUrl:'https://go.elephantenergy.com/heat-pump-user-guide', manualLabel:'Elephant Energy heat pump user guide (plus Mitsubishi manuals above)',
+    status:'new', contractorIds:[12,13,14,15,16,17] },
+  { id:'fridge', name:'Refrigerator', category:'Appliance',
+    manufacturer:'Winia', model:'WTE21HBSLD00', serial:'MR213E48710003', extra:'',
+    installDate:'2026-06-29', expectedLifeYrs:13,
+    manualUrl:'https://www.winia.com/us/support', manualLabel:'Winia support (search WTE21HBSLD00)',
+    warrantyExpiry:'2027-06-29', warrantySource:'1-year parts, 5-year compressor',
+    status:'new', contractorIds:[] },
+  { id:'range', name:'Range (Electric)', category:'Appliance',
+    manufacturer:'Whirlpool', model:'WFES3330RS2', serial:'RF1043913', extra:'',
+    installDate:'2026-06-29', expectedLifeYrs:15,
+    manualUrl:'https://www.whirlpool.com/owners-center.html', manualLabel:'Whirlpool Owner Center (search WFES3330RS2)',
+    warrantyExpiry:'2027-06-29', warrantySource:'1-year limited',
+    status:'new', contractorIds:[] },
+  { id:'dishwasher', name:'Dishwasher', category:'Appliance',
+    manufacturer:'Frigidaire', model:'FDPC4221AS3A', serial:'TH61036734', extra:'',
+    installDate:'2026-06-29', expectedLifeYrs:10,
+    manualUrl:'https://www.frigidaire.com/support/', manualLabel:'Frigidaire support (search FDPC4221AS3A)',
+    warrantyExpiry:'2027-06-29', warrantySource:'1-year limited · 1-877-435-3287',
+    status:'fixed', statusNote:'Door leak repaired before closing as a condition of sale.', contractorIds:[] },
+  { id:'tv', name:'TV', category:'Electronics',
+    manufacturer:'LG', model:'55QNED84BUA (55" QNED evo Mini LED, 2026)', serial:'', extra:'',
+    purchaseDate:'2026-08-07', purchaseSource:'Best Buy',
+    manualUrl:'https://www.lg.com/us/support', manualLabel:'LG support (search 55QNED84BUA)',
+    warrantyExpiry:'2027-08-07', warrantySource:'1-year limited',
+    status:'new', cardOnly:true, contractorIds:[] },
+  { id:'water-heater', name:'Water Heater', category:'Plumbing',
+    manufacturer:'GE', model:'Gas 40-gal', serial:'GELN0810411030', extra:'No TPR discharge pipe installed',
+    installDate:'2010-08-01', expectedLifeYrs:12,
+    manualUrl:'https://www.geappliances.com/ge/service-and-support/', manualLabel:'GE Appliances support (search GELN0810411030)',
+    status:'open', statusNote:'Past its lifespan (16 yrs old). Replacement still planned — settlement credit received; budget $1,100–$1,800.',
+    contractorIds:[] },
+  { id:'windows', name:'Windows', category:'Exterior',
+    manufacturer:'Anlin', model:'Catalina (CAT.2 XO, block frame, white/white) · 12 units', serial:'', extra:'Installed by BlueBird',
+    installDate:'2026-10-02',
+    manualUrl:'', manualLabel:'Manufacturer warranty booklet from BlueBird (Oct 22, 2026 email)',
+    status:'new', contractorIds:[10] },
+  { id:'entry-door', name:'Entry Door', category:'Exterior',
+    manufacturer:'ProVia', model:'Legacy 20-Gauge Steel, Elevation Series', serial:'', extra:'ProVia order 15730472',
+    installDate:'2026-10-02',
+    manualUrl:'', manualLabel:'ProVia entry door warranty from BlueBird',
+    status:'new', contractorIds:[10] },
+  { id:'radon', name:'Radon Mitigation System', category:'Systems',
+    manufacturer:'', model:'Sub-slab depressurization (ASD)', serial:'', extra:'Suction point: basement storage room',
+    installDate:'2026-06-29',
+    manualUrl:'', manualLabel:'',
+    status:'cardOnly', statusNote:'Retest radon 2+ years post-install per EPA guidance.', contractorIds:[] },
+  { id:'panel', name:'Electrical Panel', category:'Systems',
+    manufacturer:'Square D', model:'100A', serial:'', extra:'3 defects found at inspection',
+    installDate:'', expectedLifeYrs:null,
+    manualUrl:'', manualLabel:'',
+    status:'open', statusNote:'3 defects: dirt entering conduit (fire risk), multiple neutrals under one screw, neutral & ground sharing a lug. Licensed electrician required — plan with 200A upgrade.',
+    contractorIds:[] },
+  { id:'roof', name:'Roof', category:'Exterior',
+    manufacturer:'', model:'Composition shingle, Class 4 impact-resistant', serial:'', extra:'',
+    installDate:'2018-01-01', expectedLifeYrs:30,
+    manualUrl:'', manualLabel:'',
+    status:'cardOnly', statusNote:'Good condition at inspection.', contractorIds:[] },
+  { id:'washer-dryer', name:'Washer / Dryer', category:'Appliance',
+    manufacturer:'', model:'Not purchased yet', serial:'', extra:'240V/40A dryer hookup ready',
+    status:'placeholder', contractorIds:[] },
+];
+async function seedAppliancesIfEmpty() {
+  const existing = await sget('homehub:appliances');
+  if (existing === null || existing === undefined) {
+    await sset('homehub:appliances', SEED_APPLIANCES);
+  }
+}
+const APPLIANCE_STATUS_TAGS = {
+  new: ['tag-green','NEW'], open: ['tag-red','OPEN'], fixed: ['tag-teal','FIXED'],
+  cardOnly: ['tag-gray','REFERENCE'], placeholder: ['tag-amber','NOT YET PURCHASED']
+};
+function applianceAge(a) {
+  const dateStr = a.installDate || a.purchaseDate;
+  if (!dateStr) return null;
+  const yrs = (Date.now() - new Date(dateStr).getTime()) / (365.25*86400000);
+  return yrs;
+}
+function applianceLifePct(a) {
+  if (!a.expectedLifeYrs) return null;
+  const age = applianceAge(a);
+  if (age === null) return null;
+  return Math.min(150, Math.round((age / a.expectedLifeYrs) * 100));
+}
+async function renderAppliances() {
+  const el = document.getElementById('appliances-list');
+  if (!el) return;
+  const appliances = await sget('homehub:appliances') || [];
+  const contractors = await sget('homehub:contractors') || [];
+  const logs = await sget('homehub:logs') || [];
+  el.innerHTML = appliances.map(a => {
+    const [tagCls, tagLbl] = APPLIANCE_STATUS_TAGS[a.status] || ['tag-gray', a.status||''];
+    const pct = applianceLifePct(a);
+    const age = applianceAge(a);
+    const linkedContractors = (a.contractorIds||[]).map(id => contractors.find(c => c.id === id)).filter(Boolean);
+    const applianceLogs = logs.filter(l => l.applianceId === a.id);
+    const tasks = MAINTENANCE_TASKS.filter(t => t.applianceId === a.id);
+    return `<div class="card" style="margin-bottom:10px" id="appl-${a.id}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+        <div>
+          <div style="font-weight:600;font-size:15px">${a.name}</div>
+          <div style="font-size:12px;color:var(--mid);margin-top:2px">${[a.manufacturer, a.model].filter(Boolean).join(' · ')}</div>
+        </div>
+        <span class="tag ${tagCls}">${tagLbl}</span>
+      </div>
+      <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;font-size:12px;color:var(--mid)">
+        ${a.serial?`<span>S/N: ${a.serial}</span>`:''}
+        ${a.extra?`<span>· ${a.extra}</span>`:''}
+      </div>
+      ${a.installDate?`<div style="font-size:12px;color:var(--mid);margin-top:4px">Installed ${a.installDate}${age!==null?` · ${age.toFixed(1)} yrs old`:''}</div>`:''}
+      ${a.purchaseDate?`<div style="font-size:12px;color:var(--mid);margin-top:4px">Purchased ${a.purchaseDate}${a.purchaseSource?' · '+a.purchaseSource:''}</div>`:''}
+      ${pct!==null?`<div class="lc-bar-bg" style="margin-top:8px"><div class="lc-bar ${pct>=100?'danger':pct>=75?'warn':'good'}" style="width:${Math.min(100,pct)}%"></div></div><div class="lc-nums"><span>Expected life ~${a.expectedLifeYrs} yrs</span><span>${pct}%</span></div>`:''}
+      ${a.warrantyExpiry?`<div style="font-size:12px;margin-top:6px"><span class="tag ${new Date(a.warrantyExpiry)<new Date()?'tag-red':'tag-teal'}">Warranty ${new Date(a.warrantyExpiry)<new Date()?'expired':'until'} ${a.warrantyExpiry}</span>${a.warrantySource?` <span style="color:var(--mid)">${a.warrantySource}</span>`:''}</div>`:''}
+      ${a.manualUrl||a.manualLabel?`<div style="font-size:12px;margin-top:6px">📘 ${a.manualUrl?`<a href="${a.manualUrl}" target="_blank">${a.manualLabel||'Manual'}</a>`:a.manualLabel}</div>`:''}
+      ${a.statusNote?`<div class="al ${a.status==='open'?'al-r':'al-teal'}" style="margin-top:10px;margin-bottom:0">${a.statusNote}</div>`:''}
+      ${linkedContractors.length?`<div style="margin-top:8px"><div class="proj-col-lbl">Contractor</div>${linkedContractors.map(c=>`<span class="tag tag-navy" style="margin:2px 4px 2px 0">${c.name}${c.phone?` · ${c.phone}`:''}</span>`).join('')}</div>`:''}
+      ${tasks.length?`<div style="margin-top:10px"><div class="proj-col-lbl">Maintenance tasks</div><ul style="padding-left:18px;font-size:12px;color:var(--mid);margin-top:4px">${tasks.map(t=>`<li>${t.text}${t.isDefault?' <span style="color:var(--light)">(default interval)</span>':''}</li>`).join('')}</ul></div>`:''}
+      ${applianceLogs.length?`<div style="margin-top:10px"><div class="proj-col-lbl">Repair log history</div>${applianceLogs.map(l=>`<div style="font-size:12px;color:var(--mid);margin-top:4px">${l.date} · ${l.title}${l.cost?' · $'+l.cost.toFixed(2):''}</div>`).join('')}</div>`:''}
+    </div>`;
+  }).join('');
+}
+
+// ============================================================
+// CALENDAR / MAINTENANCE TASKS
 // ============================================================
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-const TASKS = [
-  {id:'m-filter',f:'M',mo:'all',text:'Check/replace HVAC filter — Lennox furnace (16×25×1 or 20×25×1, MERV 8–11)',mundane:false,logCat:'HVAC',logTitle:'HVAC filter change'},
+const MAINTENANCE_TASKS = [
+  // General house tasks
   {id:'m-smoke',f:'M',mo:'all',text:'Test smoke detectors and CO detectors — press test button',mundane:true},
   {id:'m-drains',f:'M',mo:'all',text:'Run all drains (basement, tubs, sinks) to prevent trap evaporation',mundane:true},
-  {id:'m-wh-leak',f:'M',mo:'all',text:'Check water heater area for leaks or corrosion (until replaced)',mundane:true},
-  {id:'m-utils',f:'M',mo:'all',text:'Log utility bills: LPC electric, Atmos/Xcel gas, water',mundane:true},
+  {id:'m-utils',f:'M',mo:'all',text:'Confirm this month\'s utility bills imported correctly; log kWh usage',mundane:true},
   {id:'m-sinks',f:'M',mo:'all',text:'Check under sinks for any slow drips or moisture',mundane:true},
-  {id:'q-hood',f:'Q',mo:[1,4,7,10],text:'Clean range hood filters — kitchen exhaust fan',mundane:true},
   {id:'q-garage',f:'Q',mo:[1,4,7,10],text:'Lubricate garage door springs, hinges, and rollers',mundane:true},
-  {id:'q-undersink',f:'Q',mo:[1,4,7,10],text:'Inspect under-sink plumbing for leaks',mundane:true},
-  {id:'q-fridge',f:'Q',mo:[1,4,7,10],text:'Vacuum refrigerator coils — Winia WTE21HBSLD00',mundane:true},
   {id:'q-gfci',f:'Q',mo:[1,4,7,10],text:'Test all GFCI outlets (kitchen, bathrooms, garage)',mundane:true},
-  {id:'s-spring-furnace',f:'S',mo:[2,3],text:'Spring: Schedule end-of-season furnace tune-up — Lennox 66,000 BTU (serial 1715A20979)',mundane:false,logCat:'HVAC',logTitle:'Furnace tune-up (spring/end-of-season)'},
-  {id:'s-spring-roof',f:'S',mo:[2,3],text:'Spring: Inspect roof + gutters after winter — Class 4 impact shingles (2018)',mundane:true},
-  {id:'s-spring-radon',f:'S',mo:[3,4],text:'Spring: Retest radon (every 2 years is the standard interval)',mundane:false,logCat:'Other',logTitle:'Radon retest'},
-  {id:'s-summer-wh-flush',f:'S',mo:[6],text:'Summer: Flush water heater sediment (annual flush) or service new unit',mundane:false,logCat:'Plumbing',logTitle:'Water heater sediment flush'},
-  {id:'s-fall-tuneup',f:'S',mo:[8,9],text:'Fall: Schedule pre-season furnace tune-up BEFORE heating season starts',mundane:false,logCat:'HVAC',logTitle:'Furnace tune-up (fall/pre-season)'},
+  {id:'q-undersink',f:'Q',mo:[1,4,7,10],text:'Inspect under-sink plumbing for leaks',mundane:true},
+  {id:'s-spring-roof',f:'S',mo:[2,3],text:'Spring: Inspect roof + gutters after winter — Class 4 impact shingles',mundane:true,applianceId:'roof'},
+  {id:'s-spring-radon',f:'S',mo:[3,4],text:'Spring: Retest radon (every 2 years is the standard interval)',mundane:false,logCat:'Other',logTitle:'Radon retest',applianceId:'radon'},
   {id:'s-fall-hosebibs',f:'S',mo:[9,10],text:'Fall: Drain and winterize hose bibs BEFORE first frost',mundane:true},
-  {id:'s-fall-gutters',f:'S',mo:[9,10],text:'Fall: Clean gutters after leaf drop',mundane:false,logCat:'Roof/Exterior',logTitle:'Gutter cleaning (fall)'},
-  {id:'s-fall-recaulk',f:'S',mo:[9],text:'Fall: Recaulk windows before winter',mundane:false,logCat:'Windows/Doors',logTitle:'Window/door recaulking'},
+  {id:'s-fall-gutters',f:'S',mo:[9,10],text:'Fall: Clean gutters after leaf drop',mundane:false,logCat:'Roof/Exterior',logTitle:'Gutter cleaning (fall)',applianceId:'roof'},
+  {id:'s-fall-recaulk',f:'S',mo:[9],text:'Fall: Recaulk around new windows/doors before winter',mundane:false,logCat:'Windows/Doors',logTitle:'Window/door recaulking',applianceId:'windows'},
   {id:'a-sewer',f:'A',mo:[0],text:'Annual: Scope sewer lateral — 57-yr clay pipe, cottonwood roots',mundane:false,logCat:'Plumbing',logTitle:'Sewer lateral camera scope'},
-  {id:'a-panel',f:'A',mo:[8],text:'Annual: Check electrical panel — monitor dirt entry through conduit',mundane:true},
-  {id:'a-chimney',f:'A',mo:[8],text:'Annual: Dryer vent + exhaust duct cleaning',mundane:false,logCat:'Appliance',logTitle:'Dryer vent cleaning'},
+  {id:'a-panel',f:'A',mo:[8],text:'Annual: Check electrical panel — monitor dirt entry through conduit',mundane:true,applianceId:'panel'},
   {id:'a-treetrim',f:'A',mo:[10],text:'Annual: Trim cottonwood trees away from roofline and sewer lateral area',mundane:false,logCat:'Landscaping',logTitle:'Tree trimming (cottonwoods)'},
   {id:'a-insurance-review',f:'A',mo:[5],text:'Annual: Insurance policy review with Jordan Martin (303-834-8555)',mundane:false,logCat:'Other',logTitle:'Annual insurance policy review'},
   {id:'a-homestead',f:'A',mo:[0],text:'Annual: File Homestead Exemption with Boulder County Assessor by Jan 1',mundane:true},
   {id:'a-taxassess',f:'A',mo:[9],text:'Annual: Review property tax assessment — deadline to protest is May 1',mundane:true},
+
+  // Heat pump (replaces furnace entirely)
+  {id:'hp-filter-check',f:'M',mo:'all',text:'Check heat pump air handler filter (Aprilaire 310, 20×20×4 media filter) — visually inspect',mundane:true,applianceId:'hp-indoor'},
+  {id:'hp-filter-replace',f:'S',mo:[3,9],text:'Replace heat pump air handler filter (Aprilaire 310, 20×20×4) — 4" media filter, ~every 6 months',mundane:false,logCat:'HVAC',logTitle:'Heat pump filter replacement',applianceId:'hp-indoor'},
+  {id:'hp-outdoor-clear',f:'S',mo:[10,11,0,1],text:'Winter: Keep heat pump outdoor unit clear of snow, ice, and debris',mundane:true,applianceId:'hp-outdoor'},
+  {id:'hp-condensate',f:'Q',mo:[1,4,7,10],text:'Clear heat pump condensate drain',mundane:true,applianceId:'hp-indoor'},
+  {id:'hp-annual-service',f:'A',mo:[8],text:'Schedule annual professional service for heat pump (Elephant Energy)',mundane:false,logCat:'HVAC',logTitle:'Heat pump annual service',applianceId:'hp-outdoor'},
+
+  // Refrigerator
+  {id:'fridge-coils',f:'Q',mo:[1,4,7,10],text:'Clean refrigerator condenser coils — Winia WTE21HBSLD00',mundane:true,applianceId:'fridge'},
+  {id:'fridge-filter',f:'S',mo:[2,8],text:'Replace refrigerator water filter if equipped',mundane:true,applianceId:'fridge',isDefault:true},
+  {id:'fridge-gaskets',f:'S',mo:[2,8],text:'Clean refrigerator door gaskets',mundane:true,applianceId:'fridge'},
+
+  // Range
+  {id:'range-clean',f:'Q',mo:[1,4,7,10],text:'Clean cooktop and oven — Whirlpool WFES3330RS2 (follow self-clean guidance in manual)',mundane:true,applianceId:'range',isDefault:true},
+
+  // Dishwasher
+  {id:'dw-filter',f:'M',mo:'all',text:'Clean dishwasher filter — Frigidaire FDPC4221AS3A',mundane:true,applianceId:'dishwasher'},
+  {id:'dw-cleancycle',f:'Q',mo:[1,4,7,10],text:'Run dishwasher cleaning cycle',mundane:true,applianceId:'dishwasher'},
+  {id:'dw-sprayarms',f:'Q',mo:[1,4,7,10],text:'Check dishwasher spray arms for clogs',mundane:true,applianceId:'dishwasher'},
+
+  // Water heater
+  {id:'m-wh-leak',f:'M',mo:'all',text:'Check water heater area for leaks or corrosion (until replaced)',mundane:true,applianceId:'water-heater'},
+  {id:'s-summer-wh-flush',f:'S',mo:[6],text:'Summer: Flush water heater sediment (annual flush)',mundane:false,logCat:'Plumbing',logTitle:'Water heater sediment flush',applianceId:'water-heater'},
 ];
+const TASKS = MAINTENANCE_TASKS; // legacy alias
 
 let taskCompletions = {};
 async function loadTaskCompletions() {
@@ -605,7 +747,7 @@ function isTaskDone(task, mo, yr) {
   return !!taskCompletions[key];
 }
 async function toggleTaskDone(taskId, mo, yr, taskText) {
-  const task = TASKS.find(t => t.id === taskId);
+  const task = MAINTENANCE_TASKS.find(t => t.id === taskId);
   if (!task) return;
   const key = `${taskId}:${cycleKey(task, mo, yr)}`;
   if (taskCompletions[key]) {
@@ -614,7 +756,7 @@ async function toggleTaskDone(taskId, mo, yr, taskText) {
       await saveTaskCompletions();
       if (!task.mundane && task.logCat) await removeAutoLog(key);
       buildCal();
-      buildDashUpcoming();
+      buildDashDueThisMonth();
     }
   } else {
     const promptMsg = task.mundane
@@ -626,7 +768,7 @@ async function toggleTaskDone(taskId, mo, yr, taskText) {
       await saveTaskCompletions();
       if (!task.mundane && task.logCat) await addAutoLog(key, task, today);
       buildCal();
-      buildDashUpcoming();
+      buildDashDueThisMonth();
     }
   }
 }
@@ -635,7 +777,7 @@ async function addAutoLog(completionKey, task, dateStr) {
   logs.unshift(withStamp({
     id: Date.now(), date: dateStr, cat: task.logCat, title: task.logTitle || task.text,
     cost: 0, contractor: '', warranty: '', notes: 'Auto-logged from recurring maintenance schedule.',
-    autoKey: completionKey
+    autoKey: completionKey, applianceId: task.applianceId || null
   }));
   await sset('homehub:logs', logs);
   await renderLog();
@@ -668,7 +810,7 @@ function buildCal() {
   for (let i = 0; i < 12; i++) {
     const mo = (startMo + i) % 12;
     const yr = startYr + Math.floor((startMo + i) / 12);
-    let tasks = TASKS.filter(t => {
+    let tasks = MAINTENANCE_TASKS.filter(t => {
       if (calCurrentFilter !== 'all' && t.f !== calCurrentFilter) return false;
       if (t.mo === 'all') return true;
       if (Array.isArray(t.mo)) return t.mo.includes(mo);
@@ -687,7 +829,7 @@ function buildCal() {
       const escText = t.text.replace(/'/g,"\\'").replace(/"/g,'&quot;');
       html += `<div class="cal-task" style="cursor:pointer;${done?'opacity:.5':''}" onclick="toggleTaskDone('${t.id}',${mo},${yr},'${escText}')">
         <span style="font-family:var(--mono);font-size:10px;color:${fColors[t.f]||'var(--mid)'};width:16px;flex-shrink:0">${done?'✓':t.f}</span>
-        <span class="cal-task-text" style="${done?'text-decoration:line-through':''}">${t.text}${done?` <span style="font-family:var(--mono);font-size:10px;color:var(--green)">— done ${taskCompletions[`${t.id}:${cycleKey(t,mo,yr)}`]}</span>`:''}</span>
+        <span class="cal-task-text" style="${done?'text-decoration:line-through':''}">${t.text}${t.isDefault?' <span style="color:var(--light);font-size:11px">(default interval)</span>':''}${done?` <span style="font-family:var(--mono);font-size:10px;color:var(--green)">— done ${taskCompletions[`${t.id}:${cycleKey(t,mo,yr)}`]}</span>`:''}</span>
       </div>`;
     });
     html += '</div>';
@@ -700,44 +842,56 @@ function buildCal() {
   grid.innerHTML = html || '<p style="color:var(--mid)">✓ All caught up — nothing left for the next 12 months on this filter.</p>';
 }
 
-function buildDashUpcoming() {
+// ============================================================
+// DASHBOARD — due this month (checkable) + alerts + utilities
+// ============================================================
+function buildDashDueThisMonth() {
   const el = document.getElementById('dash-upcoming');
   if (!el) return;
   const now = new Date();
   const startMo = now.getMonth();
   const startYr = now.getFullYear();
-  let collected = [];
-  for (let i = 0; i < 12 && collected.length < 8; i++) {
-    const mo = (startMo + i) % 12;
-    const yr = startYr + Math.floor((startMo + i) / 12);
-    const monthTasks = TASKS.filter(t => {
-      if (t.mo === 'all') return i === 0;
-      if (Array.isArray(t.mo)) return t.mo.includes(mo);
-      return t.mo === mo;
-    }).filter(t => !isTaskDone(t, mo, yr));
-    monthTasks.forEach(t => collected.push({ t, mo, yr }));
-  }
-  collected = collected.slice(0, 8);
-  el.innerHTML = collected.map(({t, mo, yr}) => {
+  const monthTasks = MAINTENANCE_TASKS.filter(t => {
+    if (t.mo === 'all') return true;
+    if (Array.isArray(t.mo)) return t.mo.includes(startMo);
+    return t.mo === startMo;
+  }).filter(t => !isTaskDone(t, startMo, startYr));
+  el.innerHTML = monthTasks.map(t => {
     const escText = t.text.replace(/'/g,"\\'").replace(/"/g,'&quot;');
-    return `<div class="upcoming-item" style="cursor:pointer" onclick="toggleTaskDone('${t.id}',${mo},${yr},'${escText}')">
+    return `<div class="upcoming-item" style="cursor:pointer" onclick="toggleTaskDone('${t.id}',${startMo},${startYr},'${escText}')">
       <span class="upcoming-mo">${t.f}</span>
       <span class="upcoming-text">${t.text}</span>
     </div>`;
-  }).join('') || '<p style="color:var(--mid);font-size:13px">✓ All caught up for the next 12 months.</p>';
+  }).join('') || '<p style="color:var(--mid);font-size:13px">✓ Nothing due this month.</p>';
 }
 
-async function buildDashMoveIn() {
-  const el = document.getElementById('dash-movein-progress');
+async function buildDashAlerts() {
+  const el = document.getElementById('dash-alerts');
   if (!el) return;
-  const todos = await sget('homehub:todos') || [];
-  const moveInTasks = todos.filter(t => t.cat === 'movein');
-  const doneCount = moveInTasks.filter(t => t.done).length;
-  const total = moveInTasks.length;
-  const pct = total ? Math.round((doneCount / total) * 100) : 0;
-  el.innerHTML = total
-    ? `<div class="prog-bg"><div class="prog-fill" style="width:${pct}%"></div></div><p style="font-family:var(--mono);font-size:11px;color:var(--mid);margin-top:4px">${doneCount} of ${total} move-in tasks complete (${pct}%)</p>`
-    : `<p style="color:var(--mid);font-size:13px">No move-in tasks logged yet — add some in To-Do Projects tagged "🏠 Move-In".</p>`;
+  const appliances = await sget('homehub:appliances') || [];
+  const now = new Date();
+  const alerts = [];
+  appliances.forEach(a => {
+    if (a.status === 'open' && a.statusNote) {
+      alerts.push({ cls: 'al-r', title: `⚠️ ${a.name}`, body: a.statusNote });
+      return;
+    }
+    const pct = applianceLifePct(a);
+    if (pct !== null && pct >= 92) {
+      const age = applianceAge(a);
+      alerts.push({ cls: pct >= 100 ? 'al-r' : 'al-a',
+        title: `${pct >= 100 ? '⏰' : '🔔'} ${a.name} — ${pct >= 100 ? 'past' : 'nearing'} expected life`,
+        body: `${age.toFixed(1)} years old, expected life ~${a.expectedLifeYrs} years.` });
+    }
+    if (a.warrantyExpiry) {
+      const days = Math.ceil((new Date(a.warrantyExpiry) - now) / 86400000);
+      if (days > 0 && days <= 60) {
+        alerts.push({ cls: 'al-a', title: `🛡️ ${a.name} — warranty ending soon`, body: `Expires ${a.warrantyExpiry} (${days} days).` });
+      }
+    }
+  });
+  el.innerHTML = alerts.map(a => `<div class="al ${a.cls}"><strong>${a.title}</strong><br>${a.body}</div>`).join('')
+    || '<p style="color:var(--mid);font-size:13px">No active alerts.</p>';
 }
 
 // ============================================================
@@ -750,7 +904,7 @@ async function renderUtilChart() {
   if (!el) return;
   const utils = (await sget('homehub:utils') || []).slice().sort((a,b) => a.month.localeCompare(b.month));
   if (!utils.length) {
-    el.innerHTML = `<p style="color:var(--mid);font-size:13px;padding:4px 0">No utility payments logged yet — add one in the Utilities tab and it'll show up here.</p>`;
+    el.innerHTML = `<p style="color:var(--mid);font-size:13px;padding:4px 0">No utility payments logged yet — add one in the Directory tab's Utilities section, or wait for the monthly auto-import.</p>`;
     return;
   }
   const recent = utils.slice(-12);
@@ -780,12 +934,13 @@ async function renderUtilChart() {
     const y = padT + chartH - barH;
     const moLabel = u.month.slice(5,7) + '/' + u.month.slice(2,4);
     const isLast = i === recent.length - 1;
+    const importedBadge = u.importedBy ? ' ⚡' : '';
     barsSvg += `<rect class="uchart-bar" x="${x}" y="${y}" width="${barW}" height="${Math.max(barH,2)}" rx="4"
       data-month="${u.month}" data-amount="${val.toFixed(2)}" data-kwh="${u.kwh||''}"
       onmousemove="uchartTooltip(event,'${u.month}',${val.toFixed(2)},${u.kwh||0})"
       onmouseleave="uchartTooltipHide()"></rect>`;
     if (isLast) {
-      barsSvg += `<text class="uchart-bar-label" x="${x + barW/2}" y="${y - 6}" text-anchor="middle">$${val.toFixed(0)}</text>`;
+      barsSvg += `<text class="uchart-bar-label" x="${x + barW/2}" y="${y - 6}" text-anchor="middle">$${val.toFixed(0)}${importedBadge}</text>`;
     }
     barsSvg += `<text class="uchart-axis-label" x="${x + barW/2}" y="${h - 6}" text-anchor="middle">${moLabel}</text>`;
   });
@@ -801,7 +956,7 @@ async function renderUtilChart() {
       </svg>
       <div class="uchart-tooltip" id="uchart-tooltip"></div>
     </div>
-    <p class="disc" style="margin-top:6px">Electric + water are billed together by City of Longmont on one statement — shown here as a combined total. Hover a bar for exact amounts; kWh shows when logged.</p>`;
+    <p class="disc" style="margin-top:6px">Electric + water are billed together by City of Longmont on one statement — shown here under "Electric". Gas from Xcel Energy. ⚡ = auto-imported from email. Hover a bar for exact amounts.</p>`;
 }
 function uchartTooltip(evt, month, amount, kwh) {
   const tip = document.getElementById('uchart-tooltip');
@@ -820,63 +975,6 @@ function uchartTooltipHide() {
 }
 
 // ============================================================
-// SYSTEM LIFECYCLES
-// ============================================================
-const LIFECYCLE_SYSTEMS = [
-  { name: 'Water Heater', detail: 'GE gas 40-gal, serial GELN0810411030 · Mfd Aug 2010', installYear: 2010, expectedLifeYrs: 12 },
-  { name: 'Furnace', detail: 'Lennox 66,000 BTU, serial 1715A20979', installYear: 2017, expectedLifeYrs: 20 },
-  { name: 'Roof', detail: 'Composition shingle, Class 4 impact-resistant', installYear: 2018, expectedLifeYrs: 30 },
-  { name: 'Electrical Panel', detail: 'Square D 100A — scheduled for 200A upgrade', installYear: 1969, expectedLifeYrs: 40 },
-];
-function buildLifecycles() {
-  const el = document.getElementById('lc-systems');
-  if (!el) return;
-  const now = new Date().getFullYear();
-  el.innerHTML = LIFECYCLE_SYSTEMS.map(s => {
-    const age = now - s.installYear;
-    const pct = Math.min(100, Math.round((age / s.expectedLifeYrs) * 100));
-    const cls = pct >= 100 ? 'danger' : pct >= 75 ? 'warn' : 'good';
-    return `<div class="lc-card">
-      <div class="lc-top"><span class="lc-name">${s.name}</span><span class="tag ${cls==='danger'?'tag-red':cls==='warn'?'tag-amber':'tag-green'}">${age} yrs old</span></div>
-      <div class="lc-detail">${s.detail}</div>
-      <div class="lc-bar-bg"><div class="lc-bar ${cls}" style="width:${pct}%"></div></div>
-      <div class="lc-nums"><span>Installed ${s.installYear}</span><span>Expected life ~${s.expectedLifeYrs} yrs</span></div>
-    </div>`;
-  }).join('');
-}
-
-// ============================================================
-// AIR FILTER TRACKER
-// ============================================================
-async function saveFilter() {
-  const date = document.getElementById('filter-date').value;
-  if (!date) { alert('Date is required.'); return; }
-  const filters = await sget('homehub:filters') || [];
-  filters.unshift(withStamp({
-    id: Date.now(), date,
-    size: document.getElementById('filter-size').value.trim(),
-    type: document.getElementById('filter-type').value.trim(),
-    notes: document.getElementById('filter-notes').value.trim()
-  }));
-  await sset('homehub:filters', filters);
-  ['filter-size','filter-type','filter-notes'].forEach(id => { const el = document.getElementById(id); if (el) el.value=''; });
-  await renderFilters();
-}
-async function renderFilters() {
-  const filters = await sget('homehub:filters') || [];
-  const el = document.getElementById('filter-list');
-  if (!el) return;
-  if (!filters.length) { el.innerHTML = '<p style="color:var(--mid);font-size:13px;padding:8px 0">No filter changes logged yet.</p>'; return; }
-  el.innerHTML = filters.map(f => `<div class="card2" style="margin-bottom:6px">
-    <div style="display:flex;justify-content:space-between;align-items:center">
-      <span style="font-weight:600">${f.date}${f.size?` · ${f.size}`:''}${f.type?` · ${f.type}`:''}</span>
-      ${attrTag(f)}
-    </div>
-    ${f.notes?`<div style="font-size:12px;color:var(--mid);margin-top:4px">${f.notes}</div>`:''}
-  </div>`).join('');
-}
-
-// ============================================================
 // REPAIR LOG
 // ============================================================
 async function addLog() {
@@ -891,7 +989,8 @@ async function addLog() {
     cost: parseFloat(document.getElementById('log-cost').value) || 0,
     contractor: document.getElementById('log-contractor').value.trim(),
     warranty: document.getElementById('log-warranty').value.trim(),
-    notes: document.getElementById('log-notes').value.trim()
+    notes: document.getElementById('log-notes').value.trim(),
+    applianceId: document.getElementById('log-appliance').value || null
   }));
   await sset('homehub:logs', logs);
   document.getElementById('log-title').value = '';
@@ -900,6 +999,7 @@ async function addLog() {
   document.getElementById('log-warranty').value = '';
   document.getElementById('log-notes').value = '';
   await renderLog();
+  await renderAppliances();
 }
 async function deleteLog(id) {
   if (!confirm('Delete this entry?')) return;
@@ -907,8 +1007,15 @@ async function deleteLog(id) {
   logs = logs.filter(l => l.id !== id);
   await sset('homehub:logs', logs);
   await renderLog();
+  await renderAppliances();
 }
 const CAT_COLORS = {Plumbing:'tag-navy',Electrical:'tag-amber',HVAC:'tag-teal','Roof/Exterior':'tag-green',Appliance:'tag-purple','Windows/Doors':'tag-red',Flooring:'tag-gray',Painting:'tag-gray',Landscaping:'tag-green',Other:'tag-gray'};
+async function populateLogApplianceSelect() {
+  const sel = document.getElementById('log-appliance');
+  if (!sel) return;
+  const appliances = await sget('homehub:appliances') || [];
+  sel.innerHTML = '<option value="">Not linked to an item</option>' + appliances.map(a => `<option value="${a.id}">${a.name}</option>`).join('');
+}
 async function renderLog() {
   const logs = await sget('homehub:logs') || [];
   const el = document.getElementById('log-list');
@@ -936,20 +1043,30 @@ async function renderLog() {
 }
 
 // ============================================================
-// CONTRACTORS
+// CONTRACTORS / DIRECTORY
 // ============================================================
 const SEED_CONTRACTORS = [
   {id:1,name:'Sheena Rosenquist',trade:'Real Estate Agent',phone:'303-507-5223',web:'',lic:'',rating:5,notes:'Buyer\'s agent · St. Vrain Realty LLC'},
   {id:2,name:'Steven Stom CPI CCPI',trade:'Home Inspector',phone:'720-442-0785',web:'',lic:'CPI CCPI',rating:5,notes:'Total Home Inspection Services LLC · Steve@ChooseTHI.com · 78-page report May 26, 2026'},
   {id:3,name:'Little Home Builder',trade:'ADU/tiny home builder',phone:'',web:'https://littlehomebuilder.com',lic:'',rating:0,notes:'Autumn plan · 576 sqft · 1 bed/1 bath'},
   {id:4,name:'Longmont Building Dept',trade:'City/Permits',phone:'303-651-8332',web:'',lic:'',rating:0,notes:'Building permits for all work requiring permits'},
-  {id:5,name:'Longmont Power & Communications (LPC)',trade:'Utility',phone:'303-651-8386',web:'',lic:'',rating:0,notes:'Electric + water utility for Longmont · combined AutoPay billing, account #2300001'},
+  {id:5,name:'Longmont Power & Communications (LPC)',trade:'Utility',phone:'303-651-8386',web:'',lic:'',rating:0,notes:'Electric + water utility for Longmont · combined AutoPay billing (account number intentionally kept out of source)'},
   {id:6,name:'Efficiency Works Colorado',trade:'HVAC',phone:'877-981-1888',web:'https://efficiencyworks.org',lic:'',rating:0,notes:'Energy rebates — HVAC, insulation, weatherization'},
   {id:7,name:'Longmont Planning',trade:'City/Permits',phone:'303-651-8330',web:'',lic:'',rating:0,notes:'ADU permits and zoning questions · HB24-1152'},
-  {id:8,name:'Jordan Martin',trade:'Insurance Agent',phone:'303-834-8555',web:'',lic:'',rating:0,notes:'State Farm agent · 721 5th Ave, Longmont CO 80501 · Alt phone 303-834-9576 · Policy # on file — see Insurance tab'},
-  {id:9,name:'CMG Mortgage Inc. (Mortgagee)',trade:'Other',phone:'',web:'',lic:'',rating:0,notes:'ISAOA/ATIMA · PO Box 2803, Daytona Beach FL 32120-2803 · Loan # on file — see Insurance tab'},
-  {id:10,name:'BlueBird',trade:'Windows/Doors',phone:'',web:'',lic:'',rating:4,notes:'Windows + entry doors project · see Projects tab for financing detail'},
-  {id:11,name:'GreenSky / Synovus Bank (Pinnacle Bank TN)',trade:'Other',phone:'',web:'',lic:'',rating:0,notes:'Financing for BlueBird project · App ID on file — see Projects tab · $13,340 financed at 20.99% APR'},
+  {id:8,name:'Jordan Martin',trade:'Insurance Agent',phone:'303-834-8555',web:'',lic:'',rating:0,notes:'State Farm agent · 721 5th Ave, Longmont CO 80501 · Alt phone 303-834-9576 · Policy # on file — see House Records'},
+  {id:9,name:'CMG Mortgage Inc. (Mortgagee)',trade:'Other',phone:'',web:'',lic:'',rating:0,notes:'ISAOA/ATIMA · PO Box 2803, Daytona Beach FL 32120-2803 · Loan # on file — see House Records'},
+  {id:10,name:'BlueBird Windows & Doors (BlueBird Construction LLC)',trade:'Windows/Doors',phone:'303-810-2888',web:'',lic:'',rating:4,notes:'Contact: Lynn Flynn, Office (permits, invoices, warranty claims) · via AccuLynx portal emails · 1551 S Sunset St, Ste E, Longmont, CO 80501 · Zero balance confirmed, warranties sent 2026-10-22'},
+  {id:11,name:'GreenSky / Synovus Bank (Pinnacle Bank TN)',trade:'Other',phone:'',web:'',lic:'',rating:0,notes:'Financing for BlueBird project · App ID on file — see House Records · $13,340 financed at 20.99% APR'},
+  {id:12,name:'Elephant Energy — Gabriella Crivelli',trade:'HVAC',phone:'720-466-5896',web:'',lic:'',rating:0,notes:'Project Manager — main contact for install, invoice, drywall repair'},
+  {id:13,name:'Elephant Energy — Allison Toth',trade:'HVAC',phone:'720-608-3856',web:'',lic:'',rating:0,notes:'Home Comfort Advisor — sales, referral'},
+  {id:14,name:'Elephant Energy — Aubreigh Zorgdrager',trade:'HVAC',phone:'720-263-3958',web:'',lic:'',rating:0,notes:'Market Coordinator — city inspection scheduling'},
+  {id:15,name:'Elephant Energy — Flor Costantino',trade:'HVAC',phone:'+54 223 447 7005',web:'',lic:'',rating:0,notes:'Project Coordinator — rebate applications'},
+  {id:16,name:'Elephant Energy — Isaac Crawford',trade:'HVAC',phone:'',web:'',lic:'',rating:0,notes:'Installation contact (named as backup) · isaac.crawford@elephantenergy.us'},
+  {id:17,name:'Elephant Energy — Service Team',trade:'HVAC',phone:'',web:'https://elephantenergy.com/service-request',lic:'',rating:0,notes:'Service requests · service@elephantenergy.com'},
+  {id:18,name:'ClearResult — Lynda Clayton',trade:'Other',phone:'303-566-7375',web:'',lic:'',rating:0,notes:'Senior Program Coordinator (for Xcel Energy) — energy audit · lynda.clayton@clearesult.com'},
+  {id:19,name:'ClearResult — Vladimir Taltos',trade:'Other',phone:'',web:'',lic:'',rating:0,notes:'Energy advisor (for Xcel Energy) — audit report · vladimir.taltos@clearesult.com'},
+  {id:20,name:'City of Longmont',trade:'Utility',phone:'',web:'',lic:'',rating:0,notes:'General utilities + building inspections — electric/water billing via LPC, building permits via Longmont Building Dept (both listed separately below)'},
+  {id:21,name:'Xcel Energy',trade:'Utility',phone:'',web:'',lic:'',rating:0,notes:'Gas utility + rebates · rebateapplication@xcelenergy.com'},
 ];
 let contractorFilter = 'all';
 async function seedContractorsIfEmpty() {
@@ -991,11 +1108,14 @@ async function renderContractors(filter, btn) {
   if (filter !== undefined) contractorFilter = filter;
   if (btn) { document.querySelectorAll('#ct-filter-bar .filter-btn').forEach(b => b.classList.remove('on')); btn.classList.add('on'); }
   let list = await sget('homehub:contractors') || [];
+  const appliances = await sget('homehub:appliances') || [];
   const filtered = contractorFilter === 'all' ? list : list.filter(c => c.trade === contractorFilter);
   const el = document.getElementById('contractors-list');
   if (!el) return;
   if (!filtered.length) { el.innerHTML = '<p style="color:var(--mid);font-size:13px;padding:12px 0">No contractors in this category.</p>'; return; }
-  el.innerHTML = filtered.map(c => `
+  el.innerHTML = filtered.map(c => {
+    const linkedItems = appliances.filter(a => (a.contractorIds||[]).includes(c.id));
+    return `
     <div class="card" style="margin-bottom:8px">
       <div style="display:flex;justify-content:space-between;align-items:flex-start">
         <div>
@@ -1011,71 +1131,14 @@ async function renderContractors(filter, btn) {
         ${c.lic?`<span style="color:var(--mid)">Lic: ${c.lic}</span>`:''}
       </div>
       ${c.notes?`<div style="font-size:12px;color:var(--mid);margin-top:6px">${c.notes}</div>`:''}
+      ${linkedItems.length?`<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border)"><div style="font-family:var(--mono);font-size:10px;color:var(--teal);letter-spacing:.04em;margin-bottom:4px">LINKED TO</div>${linkedItems.map(a=>`<span class="tag tag-teal" style="margin:2px 4px 2px 0;cursor:pointer" onclick="goToTab('appliances');setTimeout(()=>document.getElementById('appl-${a.id}')?.scrollIntoView({behavior:'smooth'}),100)">${a.name}</span>`).join('')}</div>`:''}
       ${attrTag(c)}
-    </div>`).join('');
-}
-
-// ============================================================
-// WARRANTIES
-// ============================================================
-async function addWarranty() {
-  const name = document.getElementById('w-name').value.trim();
-  if (!name) { alert('Item name is required.'); return; }
-  const warranties = await sget('homehub:warranties') || [];
-  warranties.push(withStamp({
-    id: Date.now(), name,
-    model: document.getElementById('w-model').value.trim(),
-    serial: document.getElementById('w-serial').value.trim(),
-    expiry: document.getElementById('w-expiry').value,
-    installer: document.getElementById('w-installer').value.trim(),
-    phone: document.getElementById('w-phone').value.trim(),
-    notes: document.getElementById('w-notes').value.trim()
-  }));
-  await sset('homehub:warranties', warranties);
-  ['w-name','w-model','w-serial','w-expiry','w-installer','w-phone','w-notes'].forEach(id => {
-    const el = document.getElementById(id); if(el) el.value = '';
-  });
-  await renderWarranties();
-}
-async function deleteWarranty(id) {
-  if (!confirm('Delete warranty?')) return;
-  let list = await sget('homehub:warranties') || [];
-  list = list.filter(w => w.id !== id);
-  await sset('homehub:warranties', list);
-  await renderWarranties();
-}
-async function renderWarranties() {
-  const list = await sget('homehub:warranties') || [];
-  const el = document.getElementById('warranty-list');
-  if (!el) return;
-  if (!list.length) { el.innerHTML = '<p style="color:var(--mid);font-size:13px;padding:12px 0">No warranties logged yet.</p>'; return; }
-  const today = new Date().toISOString().slice(0,10);
-  el.innerHTML = list.map(w => {
-    const expired = w.expiry && w.expiry < today;
-    return `<div class="card" style="margin-bottom:8px">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start">
-        <div>
-          <div style="font-weight:600;font-size:14px;margin-bottom:4px">${w.name}</div>
-          <div style="display:flex;gap:6px;flex-wrap:wrap">
-            ${w.model?`<span class="tag tag-gray">Model: ${w.model}</span>`:''}
-            ${w.serial?`<span class="tag tag-gray">S/N: ${w.serial}</span>`:''}
-            ${w.expiry?`<span class="tag ${expired?'tag-red':'tag-teal'}">${expired?'EXPIRED':'Active'} · ${w.expiry}</span>`:''}
-          </div>
-        </div>
-        <button class="btn btn-red btn-sm" onclick="deleteWarranty(${w.id})">✕</button>
-      </div>
-      <div style="margin-top:8px;font-size:12px;color:var(--mid)">
-        ${w.installer?`<div>Installer: ${w.installer}</div>`:''}
-        ${w.phone?`<div>Support: <a href="tel:${w.phone}" style="color:var(--teal)">${w.phone}</a></div>`:''}
-        ${w.notes?`<div style="margin-top:4px">${w.notes}</div>`:''}
-      </div>
-      <div style="margin-top:4px">${attrTag(w)}</div>
     </div>`;
   }).join('');
 }
 
 // ============================================================
-// UTILITIES
+// UTILITIES (now a section inside Directory)
 // ============================================================
 async function addUtil() {
   const mo = document.getElementById('u-month').value;
@@ -1090,7 +1153,7 @@ async function addUtil() {
     water: parseFloat(document.getElementById('u-water').value) || 0,
     notes: document.getElementById('u-notes').value.trim()
   });
-  if (idx >= 0) utils[idx] = entry; else utils.unshift(entry);
+  if (idx >= 0) utils[idx] = { ...utils[idx], ...entry }; else utils.unshift(entry);
   utils.sort((a,b) => b.month.localeCompare(a.month));
   await sset('homehub:utils', utils);
   ['u-month','u-kwh','u-elec','u-gas','u-water','u-notes'].forEach(id => {
@@ -1103,12 +1166,12 @@ async function renderUtils() {
   const utils = await sget('homehub:utils') || [];
   const el = document.getElementById('utils-list');
   if (!el) return;
-  if (!utils.length) { el.innerHTML = '<p style="color:var(--mid);font-size:13px;padding:12px 0">No utility data yet. Log your first month above.</p>'; return; }
+  if (!utils.length) { el.innerHTML = '<p style="color:var(--mid);font-size:13px;padding:12px 0">No utility data yet. Log your first month above, or wait for the monthly auto-import.</p>'; return; }
   el.innerHTML = `<table class="dt" style="margin-top:8px">
-    <thead><tr><th>Month</th><th>kWh</th><th>Electric</th><th>Gas</th><th>Water</th><th>Total</th><th>Notes</th><th></th></tr></thead>
+    <thead><tr><th>Month</th><th>kWh</th><th>Electric+Water</th><th>Gas</th><th>Total</th><th>Notes</th><th></th></tr></thead>
     <tbody>${utils.map(u => {
       const total = (u.elec||0)+(u.gas||0)+(u.water||0);
-      return `<tr><td><strong>${u.month}</strong></td><td>${u.kwh||'—'}</td><td>${u.elec?'$'+u.elec.toFixed(2):'—'}</td><td>${u.gas?'$'+u.gas.toFixed(2):'—'}</td><td>${u.water?'$'+u.water.toFixed(2):'—'}</td><td style="color:var(--teal);font-weight:600">$${total.toFixed(2)}</td><td style="color:var(--mid);font-size:12px">${u.notes||''}</td><td>${attrTag(u)}</td></tr>`;
+      return `<tr><td><strong>${u.month}</strong>${u.importedBy?' ⚡':''}</td><td>${u.kwh||'—'}</td><td>${u.elec?'$'+u.elec.toFixed(2):'—'}</td><td>${u.gas?'$'+u.gas.toFixed(2):'—'}</td><td style="color:var(--teal);font-weight:600">$${total.toFixed(2)}</td><td style="color:var(--mid);font-size:12px">${u.notes||''}</td><td>${attrTag(u)}</td></tr>`;
     }).join('')}</tbody>
   </table>`;
 }
@@ -1131,7 +1194,163 @@ async function seedUtilityPaymentsIfEmpty() {
 }
 
 // ============================================================
-// CLOSING TRACKER
+// PROJECTS — To-Do / Completed / Inspection Findings subtabs
+// ============================================================
+let projectsSubTab = 'todo';
+function projectsSetSubTab(tab, btn) {
+  projectsSubTab = tab;
+  document.querySelectorAll('#projects-subtab-bar .filter-btn').forEach(b => b.classList.remove('on'));
+  if (btn) btn.classList.add('on');
+  document.getElementById('projects-todo-view').style.display = tab === 'todo' ? '' : 'none';
+  document.getElementById('projects-completed-view').style.display = tab === 'completed' ? '' : 'none';
+  document.getElementById('projects-findings-view').style.display = tab === 'findings' ? '' : 'none';
+}
+const SEED_PROJECTS = [
+  { id: 1001, title: 'Dishwasher leak repair', status: 'completed', completedDate: '2026-06-29',
+    notes: 'Fixed before closing, as a condition of the sale.', cost: '' },
+  { id: 1002, title: 'Mitsubishi ducted heat pump installed', status: 'completed', completedDate: '2026-09-28',
+    notes: 'Installed by Elephant Energy (2–3 day install). Replaced the gas furnace. Xcel rebate application submitted. Mitsubishi product warranty registered 2026-10-02.', cost: '' },
+  { id: 1003, title: 'New windows and entry door installed', status: 'completed', completedDate: '2026-10-02',
+    notes: 'BlueBird Windows & Doors installed Anlin windows + ProVia entry door, 2026-10-01 to 10-02. Permit fees paid; BlueBird confirmed zero balance and sent warranties on 2026-10-22.', cost: '' },
+  { id: 1004, title: 'Heat pump close-out', status: 'completed', completedDate: '2026-10-22',
+    notes: 'City of Longmont inspection passed 2026-10-22. Rebates filed: Xcel Whole Home Efficiency (Ref OA0471431) and Power Ahead Colorado (Ref ORC-71369).', cost: '' },
+  { id: 1005, title: 'Xcel Home Energy Squad audit', status: 'completed', completedDate: '2026-09-24',
+    notes: 'Completed September 2026, report received 2026-09-24.', cost: '' },
+  { id: 1006, title: 'Water heater replacement', status: 'todo', notes: 'Add the TPR discharge pipe.', cost: '$1,100–$1,800', applianceId: 'water-heater' },
+  { id: 1007, title: 'Electrical panel: fix 3 defects', status: 'todo', notes: 'Combine with a 200A upgrade.', cost: '', applianceId: 'panel' },
+  { id: 1008, title: 'Drywall patch (Elephant Energy crew)', status: 'todo', notes: 'Scheduled 2026-10-23 at 8am — confirm done, including the extra area Ian asked for.', cost: '' },
+];
+async function seedProjectsIfEmpty() {
+  const existing = await sget('homehub:projects');
+  if (existing === null || existing === undefined) {
+    await sset('homehub:projects', SEED_PROJECTS);
+  }
+}
+async function addProject() {
+  const title = document.getElementById('proj-title').value.trim();
+  if (!title) { alert('Title is required.'); return; }
+  const projects = await sget('homehub:projects') || [];
+  projects.push(withStamp({
+    id: Date.now(), title, status: 'todo',
+    cost: document.getElementById('proj-cost').value.trim(),
+    notes: document.getElementById('proj-notes').value.trim()
+  }));
+  await sset('homehub:projects', projects);
+  ['proj-title','proj-cost','proj-notes'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+  await renderProjects();
+}
+async function deleteProject(id) {
+  if (!confirm('Delete this project?')) return;
+  let projects = await sget('homehub:projects') || [];
+  projects = projects.filter(p => p.id !== id);
+  await sset('homehub:projects', projects);
+  await renderProjects();
+}
+async function toggleProjectDone(id) {
+  let projects = await sget('homehub:projects') || [];
+  const idx = projects.findIndex(p => p.id === id);
+  if (idx >= 0) {
+    projects[idx].status = projects[idx].status === 'completed' ? 'todo' : 'completed';
+    if (projects[idx].status === 'completed') projects[idx].completedDate = new Date().toISOString().slice(0,10);
+    withStamp(projects[idx]);
+  }
+  await sset('homehub:projects', projects);
+  await renderProjects();
+}
+async function renderProjects() {
+  const projects = await sget('homehub:projects') || [];
+  const todoEl = document.getElementById('projects-todo-list');
+  const doneEl = document.getElementById('projects-completed-list');
+  if (todoEl) {
+    const todos = projects.filter(p => p.status === 'todo');
+    todoEl.innerHTML = todos.map(p => `<div class="proj-card">
+      <div class="proj-card-head"><div style="flex:1"><div class="proj-card-title">${p.title}</div></div>
+        <button class="btn btn-teal btn-sm" onclick="toggleProjectDone(${p.id})">✓ Done</button>
+        <button class="btn btn-red btn-sm" onclick="deleteProject(${p.id})">✕</button>
+      </div>
+      ${p.cost?`<div style="font-size:13px;color:var(--teal)">Est: ${p.cost}</div>`:''}
+      ${p.notes?`<p style="font-size:13px;color:var(--mid);margin-top:6px">${p.notes}</p>`:''}
+      ${attrTag(p)}
+    </div>`).join('') || '<p style="color:var(--mid);font-size:13px;padding:12px 0">No open projects.</p>';
+  }
+  if (doneEl) {
+    const done = projects.filter(p => p.status === 'completed').sort((a,b) => (b.completedDate||'').localeCompare(a.completedDate||''));
+    doneEl.innerHTML = done.map(p => `<div class="proj-card" style="opacity:.85">
+      <div class="proj-card-head"><div style="flex:1"><div class="proj-card-title">${p.title}</div><div class="acc-meta">${p.completedDate||''}</div></div>
+        <button class="btn btn-ghost btn-sm" onclick="toggleProjectDone(${p.id})">↩ Reopen</button>
+        <button class="btn btn-red btn-sm" onclick="deleteProject(${p.id})">✕</button>
+      </div>
+      ${p.notes?`<p style="font-size:13px;color:var(--mid);margin-top:6px">${p.notes}</p>`:''}
+      ${attrTag(p)}
+    </div>`).join('') || '<p style="color:var(--mid);font-size:13px;padding:12px 0">No completed projects yet.</p>';
+  }
+}
+
+// ============================================================
+// INSPECTION FINDINGS (Projects → Findings subtab) — the
+// original 41-item list could not be restored (source file
+// lost); these are plain editable records, never fabricated.
+// ============================================================
+let findingFilter = 'all';
+function findingSetFilter(f, btn) {
+  findingFilter = f;
+  document.querySelectorAll('#finding-filter-bar .filter-btn').forEach(b => b.classList.remove('on'));
+  if (btn) btn.classList.add('on');
+  renderFindings();
+}
+async function addFinding() {
+  const title = document.getElementById('find-title').value.trim();
+  if (!title) { alert('Title is required.'); return; }
+  const findings = await sget('homehub:findings') || [];
+  findings.push(withStamp({
+    id: Date.now(), title,
+    location: document.getElementById('find-loc').value.trim(),
+    severity: document.getElementById('find-sev').value,
+    cost: document.getElementById('find-cost').value.trim(),
+    notes: document.getElementById('find-notes').value.trim(),
+    done: false
+  }));
+  await sset('homehub:findings', findings);
+  ['find-title','find-loc','find-cost','find-notes'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+  await renderFindings();
+}
+async function deleteFinding(id) {
+  if (!confirm('Delete this finding?')) return;
+  let findings = await sget('homehub:findings') || [];
+  findings = findings.filter(f => f.id !== id);
+  await sset('homehub:findings', findings);
+  await renderFindings();
+}
+async function toggleFindingDone(id) {
+  let findings = await sget('homehub:findings') || [];
+  const idx = findings.findIndex(f => f.id === id);
+  if (idx >= 0) { findings[idx].done = !findings[idx].done; withStamp(findings[idx]); }
+  await sset('homehub:findings', findings);
+  await renderFindings();
+}
+async function renderFindings() {
+  const findings = await sget('homehub:findings') || [];
+  const el = document.getElementById('findings-list');
+  if (!el) return;
+  const sevColors = {major:'🔴',significant:'🟠',moderate:'🟡',minor:'🟢'};
+  const filtered = findings.filter(f => findingFilter==='all' ? true : findingFilter==='open' ? !f.done : f.done);
+  if (!filtered.length) { el.innerHTML = '<p style="color:var(--mid);font-size:13px;padding:12px 0">No findings logged yet. The original 41-item list from the inspection report is still missing — add it back here if you have the source file, or log items one at a time above.</p>'; return; }
+  el.innerHTML = filtered.map(f => `
+    <div class="proj-card ${f.done?'finding-done':''}">
+      <div class="proj-card-head">
+        <span style="font-size:20px">${sevColors[f.severity]||'•'}</span>
+        <div style="flex:1"><div class="proj-card-title">${f.title}</div>${f.location?`<div style="font-size:12px;color:var(--mid)">${f.location}</div>`:''}</div>
+        <button class="btn btn-ghost btn-sm" onclick="toggleFindingDone(${f.id})">${f.done?'↩ Reopen':'✓ Done'}</button>
+        <button class="btn btn-red btn-sm" onclick="deleteFinding(${f.id})">✕</button>
+      </div>
+      ${f.cost?`<div style="font-size:13px;color:var(--teal);margin-top:4px">Est: ${f.cost}</div>`:''}
+      ${f.notes?`<p style="font-size:13px;color:var(--mid);margin-top:6px">${f.notes}</p>`:''}
+      ${attrTag(f)}
+    </div>`).join('');
+}
+
+// ============================================================
+// CLOSING TRACKER (House Records)
 // ============================================================
 let ctCurrentType = 'inspection';
 let ctCurrentFilter = 'all';
@@ -1209,7 +1428,7 @@ async function ctUpdateNegStatus(id, status) {
 }
 async function ctRender(filter, btn) {
   if (filter !== undefined) ctCurrentFilter = filter;
-  if (btn) { document.querySelectorAll('#panel-closing .filter-bar .filter-btn').forEach(b => b.classList.remove('on')); btn.classList.add('on'); }
+  if (btn) { document.querySelectorAll('#panel-records .filter-bar .filter-btn').forEach(b => b.classList.remove('on')); btn.classList.add('on'); }
   const items = await sget('homehub:ct') || [];
   ['inspection','negotiation','deadline','task'].forEach(t => {
     const el = document.getElementById('ct-count-'+t);
@@ -1278,156 +1497,6 @@ async function ctRender(filter, btn) {
 }
 
 // ============================================================
-// INSPECTION FINDINGS (Projects tab) — rebuilt as plain editable
-// records; the original 41-item reference list wasn't recoverable.
-// ============================================================
-let findingFilter = 'all';
-function findingSetFilter(f, btn) {
-  findingFilter = f;
-  document.querySelectorAll('#finding-filter-bar .filter-btn').forEach(b => b.classList.remove('on'));
-  if (btn) btn.classList.add('on');
-  renderFindings();
-}
-async function addFinding() {
-  const title = document.getElementById('find-title').value.trim();
-  if (!title) { alert('Title is required.'); return; }
-  const findings = await sget('homehub:findings') || [];
-  findings.push(withStamp({
-    id: Date.now(), title,
-    location: document.getElementById('find-loc').value.trim(),
-    severity: document.getElementById('find-sev').value,
-    cost: document.getElementById('find-cost').value.trim(),
-    notes: document.getElementById('find-notes').value.trim(),
-    done: false
-  }));
-  await sset('homehub:findings', findings);
-  ['find-title','find-loc','find-cost','find-notes'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
-  await renderFindings();
-}
-async function deleteFinding(id) {
-  if (!confirm('Delete this finding?')) return;
-  let findings = await sget('homehub:findings') || [];
-  findings = findings.filter(f => f.id !== id);
-  await sset('homehub:findings', findings);
-  await renderFindings();
-}
-async function toggleFindingDone(id) {
-  let findings = await sget('homehub:findings') || [];
-  const idx = findings.findIndex(f => f.id === id);
-  if (idx >= 0) { findings[idx].done = !findings[idx].done; withStamp(findings[idx]); }
-  await sset('homehub:findings', findings);
-  await renderFindings();
-}
-async function renderFindings() {
-  const findings = await sget('homehub:findings') || [];
-  const el = document.getElementById('findings-list');
-  if (!el) return;
-  const sevColors = {major:'🔴',significant:'🟠',moderate:'🟡',minor:'🟢'};
-  const filtered = findings.filter(f => findingFilter==='all' ? true : findingFilter==='open' ? !f.done : f.done);
-  if (!filtered.length) { el.innerHTML = '<p style="color:var(--mid);font-size:13px;padding:12px 0">No findings logged yet. Add one above.</p>'; return; }
-  el.innerHTML = filtered.map(f => `
-    <div class="proj-card ${f.done?'finding-done':''}">
-      <div class="proj-card-head">
-        <span style="font-size:20px">${sevColors[f.severity]||'•'}</span>
-        <div style="flex:1"><div class="proj-card-title">${f.title}</div>${f.location?`<div style="font-size:12px;color:var(--mid)">${f.location}</div>`:''}</div>
-        <button class="btn btn-ghost btn-sm" onclick="toggleFindingDone(${f.id})">${f.done?'↩ Reopen':'✓ Done'}</button>
-        <button class="btn btn-red btn-sm" onclick="deleteFinding(${f.id})">✕</button>
-      </div>
-      ${f.cost?`<div style="font-size:13px;color:var(--teal);margin-top:4px">Est: ${f.cost}</div>`:''}
-      ${f.notes?`<p style="font-size:13px;color:var(--mid);margin-top:6px">${f.notes}</p>`:''}
-      ${attrTag(f)}
-    </div>`).join('');
-}
-
-// ============================================================
-// TO-DO PROJECTS — rebuilt as plain editable records; the
-// original 46-item reference list wasn't recoverable.
-// ============================================================
-let todoFilterVal = 'all';
-function todoFilter(f, btn) {
-  todoFilterVal = f;
-  document.querySelectorAll('#panel-todo .filter-bar .filter-btn').forEach(b => b.classList.remove('on'));
-  if (btn) btn.classList.add('on');
-  renderTodo();
-}
-async function addTodo() {
-  const title = document.getElementById('todo-title').value.trim();
-  if (!title) { alert('Title is required.'); return; }
-  const todos = await sget('homehub:todos') || [];
-  todos.push(withStamp({
-    id: Date.now(), title,
-    cat: document.getElementById('todo-cat').value,
-    diff: document.getElementById('todo-diff').value,
-    cost: document.getElementById('todo-cost').value.trim(),
-    steps: document.getElementById('todo-steps').value.trim(),
-    done: false
-  }));
-  await sset('homehub:todos', todos);
-  ['todo-title','todo-cost','todo-steps'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
-  await renderTodo();
-  await buildDashMoveIn();
-}
-async function deleteTodo(id) {
-  if (!confirm('Delete this project?')) return;
-  let todos = await sget('homehub:todos') || [];
-  todos = todos.filter(t => t.id !== id);
-  await sset('homehub:todos', todos);
-  await renderTodo();
-  await buildDashMoveIn();
-}
-async function toggleTodoDone(id) {
-  let todos = await sget('homehub:todos') || [];
-  const idx = todos.findIndex(t => t.id === id);
-  if (idx >= 0) { todos[idx].done = !todos[idx].done; withStamp(todos[idx]); }
-  await sset('homehub:todos', todos);
-  await renderTodo();
-  await buildDashMoveIn();
-}
-const DIFF_LABELS = {diy:['DIY','diff-diy'],easy:['Easy Hire','diff-easy'],medium:['Medium','diff-medium'],hard:['Complex','diff-hard'],pro:['Pro Only','diff-pro']};
-async function renderTodo() {
-  const todos = await sget('homehub:todos') || [];
-  const total = todos.length;
-  const done = todos.filter(t => t.done).length;
-  const pct = total ? Math.round((done/total)*100) : 0;
-  const totalEl = document.getElementById('todo-total'); if (totalEl) totalEl.textContent = total;
-  const doneEl = document.getElementById('todo-done'); if (doneEl) doneEl.textContent = done;
-  const pctEl = document.getElementById('todo-pct'); if (pctEl) pctEl.textContent = pct+'%';
-  const progEl = document.getElementById('todo-prog'); if (progEl) progEl.style.width = pct+'%';
-  const costSummary = todos.map(t => t.cost).filter(Boolean).join(', ');
-  const costEl = document.getElementById('todo-cost-summary'); if (costEl) costEl.textContent = costSummary ? '—' : '—';
-
-  const el = document.getElementById('todo-list');
-  if (!el) return;
-  let filtered = todos;
-  if (todoFilterVal === 'movein') filtered = todos.filter(t => t.cat === 'movein');
-  else if (todoFilterVal === 'windows') filtered = todos.filter(t => t.cat === 'windows');
-  else if (['diy','easy','medium','hard','pro'].includes(todoFilterVal)) filtered = todos.filter(t => t.diff === todoFilterVal);
-  else if (todoFilterVal === 'remaining') filtered = todos.filter(t => !t.done);
-
-  if (!filtered.length) { el.innerHTML = '<p style="color:var(--mid);font-size:13px;padding:12px 0">No projects yet. Add one above.</p>'; return; }
-  el.innerHTML = filtered.map(t => {
-    const [lbl, cls] = DIFF_LABELS[t.diff] || ['', ''];
-    return `<div class="todo-card ${t.done?'done':''}">
-      <div class="todo-card-head" onclick="this.parentElement.classList.toggle('open')">
-        <span class="todo-card-title">${t.title}</span>
-        <span class="tag ${cls}">${lbl}</span>
-        ${t.cat==='movein'?'<span class="tag tag-teal">🏠 Move-In</span>':''}
-        ${t.cat==='windows'?'<span class="tag tag-purple">🪟 Windows</span>':''}
-      </div>
-      <div class="todo-card-body">
-        ${t.cost?`<div style="font-size:13px;color:var(--teal);margin-bottom:6px">Est: ${t.cost}</div>`:''}
-        ${t.steps?`<p style="font-size:13px;color:var(--mid);margin-bottom:10px">${t.steps}</p>`:''}
-        ${attrTag(t)}
-        <div style="display:flex;gap:6px;margin-top:10px">
-          <button class="btn btn-teal btn-sm" onclick="event.stopPropagation();toggleTodoDone(${t.id})">${t.done?'↩ Reopen':'✓ Mark Done'}</button>
-          <button class="btn btn-red btn-sm" onclick="event.stopPropagation();deleteTodo(${t.id})">✕ Delete</button>
-        </div>
-      </div>
-    </div>`;
-  }).join('');
-}
-
-// ============================================================
 // INIT
 // ============================================================
 async function init() {
@@ -1444,11 +1513,12 @@ async function init() {
   } catch(e) { console.warn('GAS init:', e); }
 
   try { await seedContractorsIfEmpty(); } catch(e) { console.warn('seedContractors:', e); }
+  try { await seedAppliancesIfEmpty(); } catch(e) { console.warn('seedAppliances:', e); }
+  try { await seedProjectsIfEmpty(); } catch(e) { console.warn('seedProjects:', e); }
   try { await seedUtilityPaymentsIfEmpty(); } catch(e) { console.warn('seedUtilityPayments:', e); }
   try { await loadTaskCompletions(); } catch(e) { console.warn('loadTaskCompletions:', e); }
   try { buildCal(); } catch(e) { console.warn('buildCal:', e); }
-  try { buildDashUpcoming(); } catch(e) { console.warn('buildDashUpcoming:', e); }
-  try { buildLifecycles(); } catch(e) { console.warn('buildLifecycles:', e); }
+  try { buildDashDueThisMonth(); } catch(e) { console.warn('buildDashDueThisMonth:', e); }
 
   const today = new Date().toISOString().slice(0,10);
   const logDate = document.getElementById('log-date-in');
@@ -1456,16 +1526,16 @@ async function init() {
   if (logDate) logDate.value = today;
   if (ctDate) ctDate.value = today;
 
+  try { await populateLogApplianceSelect(); } catch(e) { console.warn('populateLogApplianceSelect:', e); }
   try { await renderContractors(); } catch(e) { console.warn('renderContractors:', e); }
-  try { await renderWarranties(); } catch(e) { console.warn('renderWarranties:', e); }
-  try { await renderFilters(); } catch(e) { console.warn('renderFilters:', e); }
+  try { await renderAppliances(); } catch(e) { console.warn('renderAppliances:', e); }
   try { await renderUtils(); } catch(e) { console.warn('renderUtils:', e); }
   try { await renderUtilChart(); } catch(e) { console.warn('renderUtilChart:', e); }
   try { await renderLog(); } catch(e) { console.warn('renderLog:', e); }
   try { await ctRender(); } catch(e) { console.warn('ctRender:', e); }
-  try { await renderTodo(); } catch(e) { console.warn('renderTodo:', e); }
+  try { await renderProjects(); } catch(e) { console.warn('renderProjects:', e); }
   try { await renderFindings(); } catch(e) { console.warn('renderFindings:', e); }
-  try { await buildDashMoveIn(); } catch(e) { console.warn('buildDashMoveIn:', e); }
+  try { await buildDashAlerts(); } catch(e) { console.warn('buildDashAlerts:', e); }
   try { await loadSensitiveFields(); } catch(e) { console.warn('loadSensitiveFields:', e); }
   try { await renderSensitiveEditor(); } catch(e) { console.warn('renderSensitiveEditor:', e); }
 

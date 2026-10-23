@@ -12,17 +12,25 @@
  * real access boundary — the /exec URL itself is not a secret worth relying on.
  *
  * Storage model:
- *  - RECORD_KEYS (logs, contractors, warranties, utils, ct, findings, todos)
+ *  - RECORD_KEYS (logs, contractors, appliances, utils, ct, findings, projects)
  *    each get their own sheet tab, one row per record, columns auto-derived
  *    from the union of fields seen — so these stay human-eyeballable/editable
  *    directly in Sheets, unlike a single JSON-blob cell.
  *  - Everything else (completion maps, the sensitive-fields object) is
  *    opaque app state with no natural row shape — those live as one row
  *    each in a single "_AppState" tab: [key, json, updatedAt].
+ *
+ * Automatic utility import: run setupUtilityImportTrigger() once from this
+ * editor's Run menu (Select function dropdown) to authorize Gmail access
+ * and install a monthly time-driven trigger that scans for City of
+ * Longmont / Xcel Energy bill emails and writes amounts into the "utils"
+ * tab. It only ever stores amounts, billing period, and due date — never
+ * account numbers. See importUtilityBillsFromGmail() below.
  */
 
-var RECORD_KEYS = ['homehub:logs', 'homehub:contractors', 'homehub:warranties', 'homehub:utils', 'homehub:ct', 'homehub:findings', 'homehub:todos'];
+var RECORD_KEYS = ['homehub:logs', 'homehub:contractors', 'homehub:appliances', 'homehub:utils', 'homehub:ct', 'homehub:findings', 'homehub:projects'];
 var APPSTATE_TAB = '_AppState';
+var UTILS_TAB = 'utils';
 
 function doGet(e) {
   var params = e.parameter || {};
@@ -177,4 +185,89 @@ function writeRecordSheet(sheet, records) {
     });
   });
   sheet.getRange(2, 1, rows.length, headers.length).setValues(rows);
+}
+
+// ============================================================
+// AUTOMATIC UTILITY IMPORT (Gmail → utils tab)
+// ============================================================
+
+// Run this ONCE from the Apps Script editor's Run menu. It both installs
+// the monthly trigger and forces the Gmail-scope authorization prompt
+// (time-driven triggers can't prompt interactively on their own).
+function setupUtilityImportTrigger() {
+  ScriptApp.getProjectTriggers().forEach(function (t) {
+    if (t.getHandlerFunction() === 'importUtilityBillsFromGmail') ScriptApp.deleteTrigger(t);
+  });
+  ScriptApp.newTrigger('importUtilityBillsFromGmail').timeBased().onMonthDay(2).atHour(6).create();
+  importUtilityBillsFromGmail(); // run once immediately so you see results right away
+}
+
+// Searches Gmail for City of Longmont and Xcel Energy bill/payment emails
+// from the last 45 days, extracts the amount and billing month, and
+// upserts that into the utils sheet — one row per month, combined with
+// whatever's already there. Idempotent: re-running never duplicates a
+// month+source combination it already imported. Only ever stores a
+// dollar amount and a month — never an account number.
+function importUtilityBillsFromGmail() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName(UTILS_TAB);
+  var current = sheet ? readRecordSheet(sheet) : [];
+
+  var alreadyImported = {}; // "yyyy-MM|source" -> true
+  current.forEach(function (r) {
+    (String(r.importedBy || '')).split(',').filter(Boolean).forEach(function (src) {
+      alreadyImported[r.month + '|' + src] = true;
+    });
+  });
+
+  var threads = GmailApp.search(
+    '(from:billing.longmontcolorado.gov OR from:xcelenergy.com) newer_than:45d', 0, 25
+  );
+  var tz = Session.getScriptTimeZone();
+  var changed = false;
+
+  threads.forEach(function (thread) {
+    thread.getMessages().forEach(function (msg) {
+      var from = msg.getFrom() || '';
+      var source = from.indexOf('longmontcolorado') !== -1 ? 'longmont'
+                 : from.indexOf('xcelenergy') !== -1 ? 'xcel' : null;
+      if (!source) return;
+
+      var body = msg.getPlainBody() || '';
+      var amtMatch = body.match(/Payment amount:\s*\$?\s*([\d,]+\.\d{2})/i)
+                   || body.match(/Total amount charged:\s*\$?\s*([\d,]+\.\d{2})/i)
+                   || body.match(/Amount [Dd]ue:\s*\$?\s*([\d,]+\.\d{2})/i);
+      if (!amtMatch) return; // e.g. the AutoPay-schedule-confirmation email, which has no dollar amount
+      var amount = parseFloat(amtMatch[1].replace(/,/g, ''));
+
+      var payMatch = body.match(/Payment date:\s*([A-Za-z]+ \d{1,2},? \d{4})/i);
+      var dueMatch = body.match(/Date due:\s*([A-Za-z]+ \d{1,2},? \d{4})/i);
+      var dateStr = payMatch ? payMatch[1] : (dueMatch ? dueMatch[1] : null);
+      var billDate = dateStr ? new Date(dateStr) : msg.getDate();
+      if (isNaN(billDate.getTime())) billDate = msg.getDate();
+      var month = Utilities.formatDate(billDate, tz, 'yyyy-MM');
+
+      var dedupeKey = month + '|' + source;
+      if (alreadyImported[dedupeKey]) return;
+      alreadyImported[dedupeKey] = true;
+
+      var idx = -1;
+      for (var i = 0; i < current.length; i++) { if (current[i].month === month) { idx = i; break; } }
+      var rec = idx >= 0 ? current[idx] : { month: month, kwh: 0, elec: 0, gas: 0, water: 0, notes: '' };
+      if (source === 'longmont') rec.elec = amount; // City of Longmont bills electric+water combined
+      if (source === 'xcel') rec.gas = amount;
+      var tags = (rec.importedBy || '').split(',').filter(Boolean);
+      if (tags.indexOf(source) === -1) tags.push(source);
+      rec.importedBy = tags.join(',');
+      rec.updatedBy = 'Auto-imported';
+      rec.updatedAt = new Date().toISOString();
+
+      if (idx >= 0) current[idx] = rec; else current.push(rec);
+      changed = true;
+    });
+  });
+
+  if (changed) {
+    writeRecordSheet(sheet || ss.insertSheet(UTILS_TAB), current);
+  }
 }
