@@ -53,6 +53,9 @@ these are left as blank, user-editable lists:
 
 - **Projects → Inspection Findings** — the original 41-item list from your
   78-page inspection report.
+- **The original 46-item general To-Do reference list** — distinct from
+  the 3 real open projects (water heater, electrical panel, drywall) now
+  populated under Projects → To-Do, which come from the Oct 22 2026 brief.
 - **Floor plan and radon-system install photos** — add them as files in
   `assets/` and reference them from the Dashboard / House Records once you
   have copies.
